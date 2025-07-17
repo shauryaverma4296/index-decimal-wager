@@ -16,6 +16,13 @@ interface StockIndex {
   changePercent: number;
 }
 
+interface IndexConfig {
+  name: string;
+  timezone: string;
+  marketOpen: number;
+  marketClose: number;
+}
+
 interface Bet {
   id: string;
   index: string;
@@ -30,12 +37,12 @@ interface Bet {
 }
 
 const STOCK_INDICES = [
-  "Taiwan",
-  "Kospi", 
-  "Hangseng",
-  "Sensex",
-  "Dax",
-  "Dow Jones"
+  { name: "Taiwan", timezone: "Asia/Taipei", marketOpen: 9, marketClose: 13.5 },
+  { name: "Kospi", timezone: "Asia/Seoul", marketOpen: 9, marketClose: 15.5 },
+  { name: "Hangseng", timezone: "Asia/Hong_Kong", marketOpen: 9.5, marketClose: 16 },
+  { name: "Sensex", timezone: "Asia/Kolkata", marketOpen: 9.25, marketClose: 15.5 },
+  { name: "Dax", timezone: "Europe/Berlin", marketOpen: 9, marketClose: 17.5 },
+  { name: "Dow Jones", timezone: "America/New_York", marketOpen: 9.5, marketClose: 16 }
 ];
 
 export const BettingApp = () => {
@@ -48,13 +55,29 @@ export const BettingApp = () => {
   const [bets, setBets] = useState<Bet[]>([]);
   const [marketOpen, setMarketOpen] = useState(true);
 
+  // Check if market is open based on timezone
+  const isMarketOpen = (indexConfig: IndexConfig) => {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: indexConfig.timezone,
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false,
+    });
+    const timeString = formatter.format(now);
+    const [hours, minutes] = timeString.split(':').map(Number);
+    const currentTime = hours + minutes / 60;
+    
+    return currentTime >= indexConfig.marketOpen && currentTime <= indexConfig.marketClose;
+  };
+
   // Simulate stock data
   useEffect(() => {
     const generateStockData = () => {
       const data: Record<string, StockIndex> = {};
       STOCK_INDICES.forEach(index => {
-        data[index] = {
-          name: index,
+        data[index.name] = {
+          name: index.name,
           value: Math.random() * 10000 + 10000,
           change: (Math.random() - 0.5) * 200,
           changePercent: (Math.random() - 0.5) * 4
@@ -68,18 +91,15 @@ export const BettingApp = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Simulate market close after 30 seconds for demo
+  // Check market status based on selected index
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setMarketOpen(false);
-      toast({
-        title: "Market Closed",
-        description: "Settling all bets...",
-      });
-    }, 30000);
-
-    return () => clearTimeout(timer);
-  }, [toast]);
+    if (selectedIndex) {
+      const indexConfig = STOCK_INDICES.find(idx => idx.name === selectedIndex);
+      if (indexConfig) {
+        setMarketOpen(isMarketOpen(indexConfig));
+      }
+    }
+  }, [selectedIndex]);
 
   const placeBet = () => {
     if (!selectedIndex || !betAmount || !betType || !betNumber) {
@@ -102,10 +122,22 @@ export const BettingApp = () => {
     }
 
     const number = parseInt(betNumber);
-    if (isNaN(number) || number < 0 || number > 99) {
+    
+    // Validation for Andar/Bahar - only single digit allowed
+    if ((betType === "andar" || betType === "bahar") && (isNaN(number) || number < 0 || number > 9)) {
       toast({
         title: "Error",
-        description: "Please enter a valid number (0-99)",
+        description: "For Andar/Bahar bets, please enter a single digit (0-9)",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Validation for Pair - two digits allowed
+    if (betType === "pair" && (isNaN(number) || number < 0 || number > 99)) {
+      toast({
+        title: "Error",
+        description: "For Pair bets, please enter a valid number (0-99)",
         variant: "destructive",
       });
       return;
@@ -190,15 +222,15 @@ export const BettingApp = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {STOCK_INDICES.map(index => (
-                      <SelectItem key={index} value={index}>
+                      <SelectItem key={index.name} value={index.name}>
                         <div className="flex items-center justify-between w-full">
-                          <span>{index}</span>
-                          {stockData[index] && (
+                          <span>{index.name}</span>
+                          {stockData[index.name] && (
                             <div className="flex items-center gap-2 ml-4">
                               <span className="font-mono">
-                                {stockData[index].value.toFixed(2)}
+                                {stockData[index.name].value.toFixed(2)}
                               </span>
-                              {stockData[index].change >= 0 ? (
+                              {stockData[index.name].change >= 0 ? (
                                 <TrendingUp className="h-3 w-3 text-success" />
                               ) : (
                                 <TrendingDown className="h-3 w-3 text-error" />
@@ -251,14 +283,23 @@ export const BettingApp = () => {
 
               {/* Bet Number */}
               <div className="space-y-2">
-                <Label>Your Number (0-99)</Label>
+                <Label>
+                  Your Number {betType === "pair" ? "(0-99)" : betType && "(0-9)"}
+                </Label>
                 <Input
                   type="number"
                   value={betNumber}
                   onChange={(e) => setBetNumber(e.target.value)}
-                  placeholder="Enter your lucky number"
+                  placeholder={
+                    betType === "pair" 
+                      ? "Enter two digits (00-99)" 
+                      : betType 
+                        ? "Enter single digit (0-9)"
+                        : "Select bet type first"
+                  }
                   min="0"
-                  max="99"
+                  max={betType === "pair" ? "99" : betType ? "9" : "99"}
+                  disabled={!betType}
                 />
               </div>
 
