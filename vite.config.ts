@@ -9,6 +9,7 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
+  base: "/index-decimal-wager/",
   plugins: [react(), mode === "development" && componentTagger()].filter(
     Boolean
   ),
