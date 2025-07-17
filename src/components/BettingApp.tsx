@@ -6,8 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { TrendingUp, TrendingDown, DollarSign, Clock, Target } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Clock, Target, LogOut } from "lucide-react";
 import { BetHistory } from "./BetHistory";
+import { Auth } from "./Auth";
+import { Wallet } from "./Wallet";
+import { supabase } from "@/integrations/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 interface StockIndex {
   name: string;
@@ -47,6 +51,8 @@ const STOCK_INDICES = [
 
 export const BettingApp = () => {
   const { toast } = useToast();
+  const [user, setUser] = useState<User | null>(null);
+  const [walletBalance, setWalletBalance] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<string>("");
   const [betAmount, setBetAmount] = useState<string>("");
   const [betType, setBetType] = useState<string>("");
@@ -54,6 +60,85 @@ export const BettingApp = () => {
   const [stockData, setStockData] = useState<Record<string, StockIndex>>({});
   const [bets, setBets] = useState<Bet[]>([]);
   const [marketOpen, setMarketOpen] = useState(true);
+
+  // Check authentication state
+  useEffect(() => {
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user || null);
+      if (session?.user) {
+        fetchWalletBalance(session.user.id);
+        fetchUserBets(session.user.id);
+      }
+    };
+
+    getSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+      if (session?.user) {
+        fetchWalletBalance(session.user.id);
+        fetchUserBets(session.user.id);
+      } else {
+        setWalletBalance(0);
+        setBets([]);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchWalletBalance = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("wallets")
+        .select("balance")
+        .eq("user_id", userId)
+        .single();
+
+      if (error) throw error;
+      setWalletBalance(Number(data.balance) || 0);
+    } catch (error: any) {
+      console.error("Error fetching wallet balance:", error);
+    }
+  };
+
+  const fetchUserBets = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("bets")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      
+      const formattedBets = data.map(bet => ({
+        id: bet.id,
+        index: bet.index_name,
+        amount: Number(bet.amount),
+        betType: bet.bet_type as "andar" | "bahar" | "pair",
+        betNumber: bet.bet_number,
+        actualValue: Number(bet.actual_value) || 0,
+        actualDecimal: bet.actual_decimal || 0,
+        isWin: bet.is_win,
+        winAmount: Number(bet.win_amount) || 0,
+        timestamp: new Date(bet.created_at)
+      }));
+      
+      setBets(formattedBets);
+    } catch (error: any) {
+      console.error("Error fetching bets:", error);
+    }
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    toast({
+      title: "Signed out",
+      description: "You have been successfully signed out.",
+    });
+  };
 
   // Check if market is open based on timezone
   const isMarketOpen = (indexConfig: IndexConfig) => {
@@ -101,7 +186,16 @@ export const BettingApp = () => {
     }
   }, [selectedIndex]);
 
-  const placeBet = () => {
+  const placeBet = async () => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "Please login to place bets",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!selectedIndex || !betAmount || !betType || !betNumber) {
       toast({
         title: "Error",
@@ -116,6 +210,16 @@ export const BettingApp = () => {
       toast({
         title: "Error", 
         description: "Bet amount must be between ₹10-₹500",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check wallet balance
+    if (walletBalance < amount) {
+      toast({
+        title: "Insufficient Balance",
+        description: "Please add money to your wallet",
         variant: "destructive",
       });
       return;
@@ -157,54 +261,125 @@ export const BettingApp = () => {
 
     const winAmount = isWin ? amount * 0.95 : 0;
 
-    const newBet: Bet = {
-      id: Date.now().toString(),
-      index: selectedIndex,
-      amount,
-      betType: betType as "andar" | "bahar" | "pair",
-      betNumber: number,
-      actualValue: currentValue,
-      actualDecimal: decimalPart,
-      isWin,
-      winAmount,
-      timestamp: new Date()
-    };
+    try {
+      // Deduct bet amount from wallet
+      await supabase.rpc("update_wallet_balance", {
+        p_user_id: user.id,
+        p_amount: amount,
+        p_type: "bet_place",
+        p_description: `Bet placed on ${selectedIndex}`,
+        p_reference_id: `bet_${Date.now()}`
+      });
 
-    setBets(prev => [newBet, ...prev]);
-    
-    toast({
-      title: isWin ? "Congratulations!" : "Better luck next time!",
-      description: isWin 
-        ? `You won ₹${winAmount.toFixed(2)}!`
-        : `You lost ₹${amount}. Try again!`,
-      variant: isWin ? "default" : "destructive",
-    });
+      // Save bet to database
+      const { data: betData, error: betError } = await supabase
+        .from("bets")
+        .insert({
+          user_id: user.id,
+          index_name: selectedIndex,
+          amount,
+          bet_type: betType,
+          bet_number: number,
+          actual_value: currentValue,
+          actual_decimal: decimalPart,
+          is_win: isWin,
+          win_amount: winAmount
+        })
+        .select()
+        .single();
 
-    // Reset form
-    setBetAmount("");
-    setBetNumber("");
+      if (betError) throw betError;
+
+      // If win, add winning amount to wallet
+      if (isWin) {
+        await supabase.rpc("update_wallet_balance", {
+          p_user_id: user.id,
+          p_amount: winAmount,
+          p_type: "bet_win",
+          p_description: `Winnings from ${selectedIndex} bet`,
+          p_reference_id: betData.id
+        });
+      }
+
+      // Update local state
+      setWalletBalance(prev => isWin ? prev - amount + winAmount : prev - amount);
+      
+      const newBet: Bet = {
+        id: betData.id,
+        index: selectedIndex,
+        amount,
+        betType: betType as "andar" | "bahar" | "pair",
+        betNumber: number,
+        actualValue: currentValue,
+        actualDecimal: decimalPart,
+        isWin,
+        winAmount,
+        timestamp: new Date(betData.created_at)
+      };
+
+      setBets(prev => [newBet, ...prev]);
+      
+      toast({
+        title: isWin ? "Congratulations!" : "Better luck next time!",
+        description: isWin 
+          ? `You won ₹${winAmount.toFixed(2)}!`
+          : `You lost ₹${amount}. Try again!`,
+        variant: isWin ? "default" : "destructive",
+      });
+
+      // Reset form
+      setBetAmount("");
+      setBetNumber("");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background p-4 flex items-center justify-center">
+        <Auth onAuthSuccess={() => {}} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
-            Stock Index Betting
-          </h1>
-          <div className="flex items-center justify-center gap-2">
-            <Clock className="h-4 w-4" />
-            <span className="text-muted-foreground">
-              Market Status: {marketOpen ? "Open" : "Closed"}
-            </span>
-            <Badge variant={marketOpen ? "default" : "destructive"}>
-              {marketOpen ? "LIVE" : "CLOSED"}
-            </Badge>
+        <div className="flex justify-between items-center">
+          <div className="text-center space-y-2 flex-1">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
+              Stock Index Betting
+            </h1>
+            <div className="flex items-center justify-center gap-2">
+              <Clock className="h-4 w-4" />
+              <span className="text-muted-foreground">
+                Market Status: {marketOpen ? "Open" : "Closed"}
+              </span>
+              <Badge variant={marketOpen ? "default" : "destructive"}>
+                {marketOpen ? "LIVE" : "CLOSED"}
+              </Badge>
+            </div>
           </div>
+          <Button variant="outline" onClick={signOut}>
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Wallet Panel */}
+          <Wallet
+            userId={user.id}
+            balance={walletBalance}
+            onBalanceUpdate={setWalletBalance}
+          />
+
           {/* Betting Panel */}
           <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-primary/20">
             <div className="space-y-6">
@@ -323,9 +498,11 @@ export const BettingApp = () => {
               <Button 
                 onClick={placeBet} 
                 className="w-full bg-gradient-to-r from-primary to-success hover:from-primary/90 hover:to-success/90"
-                disabled={!marketOpen}
+                disabled={!marketOpen || walletBalance < parseInt(betAmount || "0")}
               >
-                {marketOpen ? "Place Bet" : "Market Closed"}
+                {!marketOpen ? "Market Closed" : 
+                 walletBalance < parseInt(betAmount || "0") ? "Insufficient Balance" : 
+                 "Place Bet"}
               </Button>
             </div>
           </Card>
