@@ -163,7 +163,7 @@ export const BettingApp = () => {
       STOCK_INDICES.forEach(index => {
         data[index.name] = {
           name: index.name,
-          value: Math.random() * 10000 + 10000,
+          value: parseFloat((Math.random() * 10000 + 10000).toFixed(2)),
           change: (Math.random() - 0.5) * 200,
           changePercent: (Math.random() - 0.5) * 4
         };
@@ -249,7 +249,9 @@ export const BettingApp = () => {
 
     const currentValue = stockData[selectedIndex]?.value || 0;
     const decimalPart = Math.floor((currentValue % 1) * 100);
-    
+    console.log({
+      currentValue, decimalPart, number
+    })
     let isWin = false;
     if (betType === "andar") {
       isWin = Math.floor(decimalPart / 10) === Math.floor(number / 10);
