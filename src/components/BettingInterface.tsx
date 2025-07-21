@@ -246,10 +246,10 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
             <h2 className="text-xl font-semibold">Place Your Bet</h2>
           </div>
 
-          {dataLoading ? (
+          {/* {dataLoading ? (
             <LoadingSpinner text="Loading market data..." className="py-8" />
-          ) : (
-            <>
+          ) : ( */}
+            {/* <> */}
               {/* Index Selection */}
               <div className="space-y-2">
                 <Label>Select Stock Index</Label>
@@ -379,8 +379,8 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
                   <p>Selected market is currently closed. Please try again during market hours.</p>
                 </div>
               )}
-            </>
-          )}
+            {/* </> )}*/}
+          
         </div>
       </Card>
     </div>

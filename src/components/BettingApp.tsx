@@ -38,10 +38,11 @@ export const BettingApp = () => {
 
     getSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log(_event, session);
       setUser(session?.user || null);
       if (session?.user) {
-        await fetchWalletBalance(session.user.id);
+        fetchWalletBalance(session.user.id);
       } else {
         setWalletBalance(0);
       }
