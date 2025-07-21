@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp, History, TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, History } from "lucide-react";
+import { LoadingSpinner } from "./LoadingSpinner";
+import { supabase } from "@/integrations/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 interface Bet {
   id: string;
@@ -19,122 +20,105 @@ interface Bet {
 }
 
 interface BetHistoryProps {
-  bets: Bet[];
+  user: User;
+  refreshTrigger: number;
 }
 
-export const BetHistory = ({ bets }: BetHistoryProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
+  const [bets, setBets] = useState<Bet[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const totalWinnings = bets.reduce((sum, bet) => sum + bet.winAmount, 0);
-  const totalBets = bets.length;
-  const winRate = totalBets > 0 ? (bets.filter(bet => bet.isWin).length / totalBets) * 100 : 0;
+  const fetchUserBets = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("bets")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
-  const getBetTypeDisplay = (betType: string) => {
-    switch (betType) {
-      case "andar": return "Andar (.X0)";
-      case "bahar": return "Bahar (.0X)";
-      case "pair": return "Pair (.XX)";
-      default: return betType;
+      if (error) throw error;
+      
+      const formattedBets = data.map(bet => ({
+        id: bet.id,
+        index: bet.index_name,
+        amount: Number(bet.amount),
+        betType: bet.bet_type as "andar" | "bahar" | "pair",
+        betNumber: bet.bet_number,
+        actualValue: Number(bet.actual_value) || 0,
+        actualDecimal: bet.actual_decimal || 0,
+        isWin: bet.is_win,
+        winAmount: Number(bet.win_amount) || 0,
+        timestamp: new Date(bet.created_at)
+      }));
+      
+      setBets(formattedBets);
+    } catch (error: any) {
+      console.error("Error fetching bets:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getDecimalDisplay = (decimal: number, betType: string) => {
-    const firstDigit = Math.floor(decimal / 10);
-    const secondDigit = decimal % 10;
-    
-    switch (betType) {
-      case "andar": return `.${firstDigit}0`;
-      case "bahar": return `.0${secondDigit}`;
-      case "pair": return `.${decimal.toString().padStart(2, '0')}`;
-      default: return `.${decimal.toString().padStart(2, '0')}`;
-    }
-  };
+  useEffect(() => {
+    fetchUserBets();
+  }, [user.id, refreshTrigger]);
 
   return (
-    <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-primary/20">
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <CollapsibleTrigger asChild>
-          <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-            <div className="flex items-center gap-2">
-              <History className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-semibold">Bet History</h2>
-            </div>
-            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
-        </CollapsibleTrigger>
+    <div className="max-w-4xl mx-auto">
+      <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-primary/20">
+        <div className="space-y-6">
+          <div className="flex items-center gap-2">
+            <History className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold">Bet History</h2>
+            <Badge variant="secondary">{bets.length} bets</Badge>
+          </div>
 
-        {/* Summary Stats */}
-        <div className="grid grid-cols-3 gap-4 mt-4">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-primary">₹{totalWinnings.toFixed(0)}</p>
-            <p className="text-xs text-muted-foreground">Total Winnings</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold">{totalBets}</p>
-            <p className="text-xs text-muted-foreground">Total Bets</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-success">{winRate.toFixed(1)}%</p>
-            <p className="text-xs text-muted-foreground">Win Rate</p>
-          </div>
-        </div>
-
-        <CollapsibleContent className="space-y-3 mt-4">
-          {bets.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <History className="h-12 w-12 mx-auto mb-2 opacity-50" />
+          {loading ? (
+            <LoadingSpinner text="Loading bet history..." className="py-8" />
+          ) : bets.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No bets placed yet</p>
-              <p className="text-sm">Place your first bet to see history here</p>
+              <p className="text-sm">Start betting to see your history here!</p>
             </div>
           ) : (
-            bets.map((bet) => (
-              <Card key={bet.id} className={`p-4 border-l-4 ${bet.isWin ? 'border-l-success bg-success/5' : 'border-l-error bg-error/5'}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant={bet.isWin ? "default" : "destructive"}>
-                      {bet.isWin ? "WON" : "LOST"}
-                    </Badge>
-                    <span className="font-semibold">{bet.index}</span>
+            <div className="space-y-3">
+              {bets.map((bet) => (
+                <Card key={bet.id} className="p-4 bg-muted/50 hover:bg-muted/70 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{bet.index}</Badge>
+                        <Badge variant={bet.betType === "andar" ? "default" : bet.betType === "bahar" ? "secondary" : "destructive"}>
+                          {bet.betType.toUpperCase()}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          #{bet.betNumber}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Bet: ₹{bet.amount} • Actual: {bet.actualValue.toFixed(2)} (Decimal: {bet.actualDecimal})
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {bet.timestamp.toLocaleDateString()} {bet.timestamp.toLocaleTimeString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <Badge variant={bet.isWin ? "default" : "destructive"} className="mb-1">
+                        {bet.isWin ? "WON" : "LOST"}
+                      </Badge>
+                      <p className={`text-lg font-bold ${bet.isWin ? "text-success" : "text-error"}`}>
+                        {bet.isWin ? `+₹${bet.winAmount.toFixed(2)}` : `-₹${bet.amount}`}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">
-                      {bet.timestamp.toLocaleTimeString()}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Bet Details</p>
-                    <p>{getBetTypeDisplay(bet.betType)}</p>
-                    <p>Number: {bet.betNumber}</p>
-                    <p>Amount: ₹{bet.amount}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Market Result</p>
-                    <p>Value: {bet.actualValue.toFixed(2)}</p>
-                    <p>Decimal: {getDecimalDisplay(bet.actualDecimal, bet.betType)}</p>
-                    <p className={bet.isWin ? "text-success font-semibold" : "text-error"}>
-                      {bet.isWin ? `+₹${bet.winAmount.toFixed(2)}` : `-₹${bet.amount}`}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                  {bet.isWin ? (
-                    <TrendingUp className="h-3 w-3 text-success" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3 text-error" />
-                  )}
-                  <span>
-                    {bet.isWin ? "Match found!" : "No match"}
-                  </span>
-                </div>
-              </Card>
-            ))
+                </Card>
+              ))}
+            </div>
           )}
-        </CollapsibleContent>
-      </Collapsible>
-    </Card>
+        </div>
+      </Card>
+    </div>
   );
 };

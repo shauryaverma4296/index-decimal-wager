@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Wallet as WalletIcon, Plus, History, CreditCard } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LoadingSpinner } from "./LoadingSpinner";
 
 interface WalletProps {
   userId: string;
@@ -28,8 +29,10 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
   const [addAmount, setAddAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(true);
 
   const fetchTransactions = async () => {
+    setTransactionsLoading(true);
     try {
       const { data, error } = await supabase
         .from("transactions")
@@ -42,6 +45,8 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
       setTransactions(data || []);
     } catch (error: any) {
       console.error("Error fetching transactions:", error);
+    } finally {
+      setTransactionsLoading(false);
     }
   };
 
@@ -115,8 +120,9 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
   };
 
   return (
-    <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-primary/20">
-      <Tabs defaultValue="balance" className="w-full">
+    <div className="max-w-2xl mx-auto">
+      <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-primary/20">
+        <Tabs defaultValue="balance" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="balance">Wallet</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
@@ -153,7 +159,7 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
                   className="bg-gradient-to-r from-primary to-success hover:from-primary/90 hover:to-success/90"
                 >
                   {loading ? (
-                    "Adding..."
+                    <LoadingSpinner size="sm" />
                   ) : (
                     <>
                       <Plus className="h-4 w-4 mr-2" />
@@ -191,16 +197,20 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
             <h3 className="font-semibold">Recent Transactions</h3>
           </div>
 
-          {transactions.length === 0 ? (
+          {transactionsLoading ? (
+            <LoadingSpinner text="Loading transactions..." className="py-8" />
+          ) : transactions.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
-              No transactions yet
+              <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No transactions yet</p>
+              <p className="text-sm">Add money or place bets to see transaction history</p>
             </div>
           ) : (
             <div className="space-y-2">
               {transactions.map((transaction) => (
                 <div
                   key={transaction.id}
-                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors"
                 >
                   <div>
                     <p className="text-sm font-medium">
@@ -218,7 +228,8 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
             </div>
           )}
         </TabsContent>
-      </Tabs>
-    </Card>
+        </Tabs>
+      </Card>
+    </div>
   );
 };
