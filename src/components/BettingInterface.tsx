@@ -69,6 +69,18 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
     const [hours, minutes] = timeString.split(':').map(Number);
     const currentTime = hours + minutes / 60;
     
+    // Debug logging for DAX
+    if (indexConfig.name === "Dax") {
+      console.log(`DAX Market Check:`, {
+        timezone: indexConfig.timezone,
+        currentLocalTime: timeString,
+        currentTimeDecimal: currentTime,
+        marketOpen: indexConfig.marketOpen,
+        marketClose: indexConfig.marketClose,
+        isOpen: currentTime >= indexConfig.marketOpen && currentTime <= indexConfig.marketClose
+      });
+    }
+    
     return currentTime >= indexConfig.marketOpen && currentTime <= indexConfig.marketClose;
   };
 
