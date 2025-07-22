@@ -650,19 +650,19 @@ export const BettingInterface = ({
                   );
                   return (
                     <SelectItem key={index.name} value={index.name} className="h-14">
-                      <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-medium">{index.name}</span>
-                          <Badge
-                            variant={isOpen ? "default" : "destructive"}
-                            className="text-xs shrink-0"
-                          >
-                            {isOpen ? "OPEN" : "CLOSED"}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-1 text-right">
+                      <div className="flex flex-col w-full">
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-medium">{index.name}</span>
+                            <Badge
+                              variant={isOpen ? "default" : "destructive"}
+                              className="text-xs shrink-0"
+                            >
+                              {isOpen ? "OPEN" : "CLOSED"}
+                            </Badge>
+                          </div>
                           {stockData[index.name] && (
-                            <>
+                            <div className="flex items-center gap-1 text-right">
                               <span className="font-mono text-sm">
                                 {stockData[index.name].value.toFixed(2)}
                               </span>
@@ -671,23 +671,25 @@ export const BettingInterface = ({
                               ) : (
                                 <TrendingDown className="h-3 w-3 text-error" />
                               )}
-                            </>
+                            </div>
                           )}
                         </div>
+                        {indexConfig && (
+                          <div className="flex justify-between w-full">
+                            <div className="text-xs text-muted-foreground">
+                              {getFormattedTime(
+                                indexConfig,
+                                indexConfig.marketOpen
+                              )}{" "}
+                              -{" "}
+                              {getFormattedTime(
+                                indexConfig,
+                                indexConfig.marketClose
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      {indexConfig && (
-                        <div className="text-xs text-muted-foreground mt-1 truncate">
-                          {getFormattedTime(
-                            indexConfig,
-                            indexConfig.marketOpen
-                          )}{" "}
-                          -{" "}
-                          {getFormattedTime(
-                            indexConfig,
-                            indexConfig.marketClose
-                          )}
-                        </div>
-                      )}
                     </SelectItem>
                   );
                 })}
