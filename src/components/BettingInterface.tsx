@@ -649,7 +649,11 @@ export const BettingInterface = ({
                     (idx) => idx.name === index.name
                   );
                   return (
-                    <SelectItem key={index.name} value={index.name} className="h-14">
+                    <SelectItem
+                      key={index.name}
+                      value={index.name}
+                      className="h-14"
+                    >
                       <div className="flex flex-col w-full">
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center gap-2 min-w-0">
