@@ -1,7 +1,14 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, History, Clock, CheckCircle2, DollarSign } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  History,
+  Clock,
+  CheckCircle2,
+  DollarSign,
+} from "lucide-react";
 import { LoadingSpinner } from "./LoadingSpinner";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
@@ -75,31 +82,31 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
   // Setup realtime subscription for bet updates
   useEffect(() => {
     if (!user?.id) return;
-    
-    console.log('Setting up realtime subscription for user:', user.id);
-    
+
+    console.log("Setting up realtime subscription for user:", user.id);
+
     const channel = supabase
       .channel(`bet-history-updates-${user.id}`, {
         config: {
           broadcast: { self: true },
-          presence: { key: user.id }
-        }
+          presence: { key: user.id },
+        },
       })
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*', // Listen to all changes (INSERT, UPDATE, DELETE)
-          schema: 'public',
-          table: 'bets',
+          event: "*", // Listen to all changes (INSERT, UPDATE, DELETE)
+          schema: "public",
+          table: "bets",
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('🔄 Bet update received in history:', payload);
-          console.log('Event type:', payload.eventType);
-          console.log('Old data:', payload.old);
-          console.log('New data:', payload.new);
-          
-          if (payload.eventType === 'INSERT') {
+          console.log("🔄 Bet update received in history:", payload);
+          console.log("Event type:", payload.eventType);
+          console.log("Old data:", payload.old);
+          console.log("New data:", payload.new);
+
+          if (payload.eventType === "INSERT") {
             // Handle new bet insertion
             const newBet = {
               id: payload.new.id,
@@ -118,29 +125,34 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                 : undefined,
             };
 
-            console.log('📝 Adding new bet to history:', newBet);
-            setBets(prev => [newBet, ...prev]);
-            
+            console.log("📝 Adding new bet to history:", newBet);
+            setBets((prev) => [newBet, ...prev]);
+
             toast({
               title: "New Bet Placed! 🎯",
               description: `₹${newBet.amount} bet on ${newBet.index}`,
               variant: "default",
             });
-
-          } else if (payload.eventType === 'UPDATE') {
-            console.log('🔄 Processing bet update...');
+          } else if (payload.eventType === "UPDATE") {
+            console.log("🔄 Processing bet update...");
             // Handle bet settlement with animation
             const updatedBet = payload.new;
             const oldBet = payload.old;
-            const wasSettled = oldBet?.status === 'pending' && updatedBet.status === 'settled';
-            
-            console.log('Was settled?', wasSettled);
-            console.log('Old status:', oldBet?.status, 'New status:', updatedBet.status);
-            
-            setBets(prev => {
-              const updated = prev.map(bet => {
+            const wasSettled =
+              oldBet?.status === "pending" && updatedBet.status === "settled";
+
+            console.log("Was settled?", wasSettled);
+            console.log(
+              "Old status:",
+              oldBet?.status,
+              "New status:",
+              updatedBet.status
+            );
+
+            setBets((prev) => {
+              const updated = prev.map((bet) => {
                 if (bet.id === updatedBet.id) {
-                  console.log('🎯 Updating bet:', bet.id);
+                  console.log("🎯 Updating bet:", bet.id);
                   const updatedBetData = {
                     ...bet,
                     actualValue: Number(updatedBet.actual_value) || 0,
@@ -148,29 +160,36 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                     isWin: updatedBet.is_win,
                     winAmount: Number(updatedBet.win_amount) || 0,
                     status: updatedBet.status || "pending",
-                    settlementTime: updatedBet.settlement_time 
-                      ? new Date(updatedBet.settlement_time) 
+                    settlementTime: updatedBet.settlement_time
+                      ? new Date(updatedBet.settlement_time)
                       : bet.settlementTime,
                   };
 
                   // Trigger animation for newly settled bets
                   if (wasSettled) {
-                    console.log('🎉 Triggering settlement animation for bet:', bet.id);
-                    setAnimatingBets(prev => new Set([...prev, bet.id]));
-                    
+                    console.log(
+                      "🎉 Triggering settlement animation for bet:",
+                      bet.id
+                    );
+                    setAnimatingBets((prev) => new Set([...prev, bet.id]));
+
                     // Show settlement notification
                     toast({
-                      title: updatedBet.is_win ? "🎉 Congratulations!" : "😔 Better luck next time!",
-                      description: updatedBet.is_win 
-                        ? `You won ₹${Number(updatedBet.win_amount).toFixed(2)}!`
+                      title: updatedBet.is_win
+                        ? "🎉 Congratulations!"
+                        : "😔 Better luck next time!",
+                      description: updatedBet.is_win
+                        ? `You won ₹${Number(updatedBet.win_amount).toFixed(
+                            2
+                          )}!`
                         : `Your bet of ₹${bet.amount} was settled.`,
                       variant: updatedBet.is_win ? "default" : "destructive",
                     });
 
                     // Remove animation after 3 seconds
                     setTimeout(() => {
-                      console.log('🔄 Removing animation for bet:', bet.id);
-                      setAnimatingBets(prev => {
+                      console.log("🔄 Removing animation for bet:", bet.id);
+                      setAnimatingBets((prev) => {
                         const newSet = new Set(prev);
                         newSet.delete(bet.id);
                         return newSet;
@@ -182,19 +201,19 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                 }
                 return bet;
               });
-              console.log('📊 Updated bets array length:', updated.length);
+              console.log("📊 Updated bets array length:", updated.length);
               return updated;
             });
           }
         }
       )
       .subscribe((status) => {
-        console.log('📡 Subscription status:', status);
+        console.log("📡 Subscription status:", status);
       });
 
     // Cleanup subscription on unmount
     return () => {
-      console.log('🧹 Cleaning up subscription for user:', user.id);
+      console.log("🧹 Cleaning up subscription for user:", user.id);
       supabase.removeChannel(channel);
     };
   }, [user?.id, toast]);
@@ -229,11 +248,11 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                         : "bg-destructive/20 border-destructive/50 shadow-lg shadow-destructive/25 animate-pulse"
                       : "bg-muted/50 hover:bg-muted/70"
                   } ${
-                    bet.status === "pending" 
-                      ? "border-l-4 border-l-yellow-500" 
-                      : bet.isWin 
-                        ? "border-l-4 border-l-green-500" 
-                        : "border-l-4 border-l-red-500"
+                    bet.status === "pending"
+                      ? "border-l-4 border-l-yellow-500"
+                      : bet.isWin
+                      ? "border-l-4 border-l-green-500"
+                      : "border-l-4 border-l-red-500"
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -278,7 +297,10 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                         <>
                           <div className="flex items-center gap-2 mb-1">
                             <Clock className="h-4 w-4 text-yellow-500 animate-spin" />
-                            <Badge variant="secondary" className="animate-pulse">
+                            <Badge
+                              variant="secondary"
+                              className="animate-pulse"
+                            >
                               PENDING
                             </Badge>
                           </div>
@@ -295,7 +317,7 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                                   Processing settlement...
                                 </span>
                               ) : (
-                                'Waiting for settlement time'
+                                "Waiting for settlement time"
                               )}
                             </p>
                           )}
@@ -310,7 +332,11 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                             )}
                             <Badge
                               variant={bet.isWin ? "default" : "destructive"}
-                              className={animatingBets.has(bet.id) ? "animate-bounce" : ""}
+                              className={
+                                animatingBets.has(bet.id)
+                                  ? "animate-bounce"
+                                  : ""
+                              }
                             >
                               {bet.isWin ? "WON" : "LOST"}
                             </Badge>
@@ -318,9 +344,7 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                           <p
                             className={`text-lg font-bold transition-all duration-300 ${
                               bet.isWin ? "text-success" : "text-error"
-                            } ${
-                              animatingBets.has(bet.id) ? "scale-110" : ""
-                            }`}
+                            } ${animatingBets.has(bet.id) ? "scale-110" : ""}`}
                           >
                             {bet.isWin
                               ? `+₹${bet.winAmount.toFixed(2)}`

@@ -261,35 +261,41 @@ export const BettingInterface = ({
     // Calculate when market closes in IST
     const marketCloseHours = Math.floor(indexConfig.marketClose);
     const marketCloseMinutes = Math.round((indexConfig.marketClose % 1) * 60);
-    
+
     // Create market close time in market's timezone for today
     const marketCloseToday = new Date();
     marketCloseToday.setHours(marketCloseHours, marketCloseMinutes, 0, 0);
-    
+
     // Convert market close to IST
-    const marketCloseIST = new Date(marketCloseToday.toLocaleString("en-US", { timeZone: indexConfig.timezone }));
-    const marketCloseISTDecimal = marketCloseIST.getHours() + marketCloseIST.getMinutes() / 60;
-    
+    const marketCloseIST = new Date(
+      marketCloseToday.toLocaleString("en-US", {
+        timeZone: indexConfig.timezone,
+      })
+    );
+    const marketCloseISTDecimal =
+      marketCloseIST.getHours() + marketCloseIST.getMinutes() / 60;
+
     // For markets that close the next day in IST (like US markets)
     // We need to check if the market close time converted to IST is actually tomorrow
     const istOffset = 5.5; // IST is UTC+5:30
     const marketOffset = getTimezoneOffset(indexConfig.timezone);
     const timeDiff = istOffset - marketOffset;
-    
+
     // If adding timezone difference pushes the close time past midnight, it's next day
     const adjustedCloseTime = indexConfig.marketClose + timeDiff;
     const closesNextDayInIST = adjustedCloseTime >= 24;
-    
+
     let isAfterMarketClose;
-    
+
     if (closesNextDayInIST) {
       // Market closes tomorrow in IST - allow any time from now until end of day
       // The actual close time will be early hours of tomorrow (like 1:30 AM)
       const tomorrowCloseTime = adjustedCloseTime - 24; // Convert to next day hours
-      
+
       // For times today (current day), allow anything after current time
       // For times that look like tomorrow (0:00 to close time), check separately
-      if (customTimeDecimal < 6) { // Assuming times 0:00-6:00 are meant for tomorrow
+      if (customTimeDecimal < 6) {
+        // Assuming times 0:00-6:00 are meant for tomorrow
         isAfterMarketClose = customTimeDecimal > tomorrowCloseTime;
       } else {
         // Times after 6:00 are for today, always valid if not in past
@@ -322,32 +328,34 @@ export const BettingInterface = ({
   // Setup real-time bet settlement monitoring using Supabase realtime
   useEffect(() => {
     const channel = supabase
-      .channel('bet-updates')
+      .channel("bet-updates")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'bets',
+          event: "UPDATE",
+          schema: "public",
+          table: "bets",
           filter: `user_id=eq.${user?.id}`,
         },
         (payload) => {
-          console.log('Bet updated via realtime:', payload.new);
+          console.log("Bet updated via realtime:", payload.new);
           const bet = payload.new as any;
-          
+
           // Show notification if bet is settled
-          if (bet.status === 'settled') {
+          if (bet.status === "settled") {
             toast({
-              title: 'Bet Settled!',
-              description: `Your bet has been ${bet.is_win ? 'won' : 'lost'}! ${bet.is_win ? `Won ₹${bet.win_amount}` : ''}`,
-              variant: bet.is_win ? 'default' : 'destructive',
+              title: "Bet Settled!",
+              description: `Your bet has been ${bet.is_win ? "won" : "lost"}! ${
+                bet.is_win ? `Won ₹${bet.win_amount}` : ""
+              }`,
+              variant: bet.is_win ? "default" : "destructive",
             });
-            
+
             // Update wallet balance if bet won
             if (bet.is_win && bet.win_amount > 0) {
               onWalletUpdate(walletBalance + bet.win_amount);
             }
-            
+
             // Trigger bet history refresh
             onBetPlaced();
           }
@@ -360,44 +368,6 @@ export const BettingInterface = ({
       supabase.removeChannel(channel);
     };
   }, [user?.id, toast, onWalletUpdate, onBetPlaced]);
-
-  // Setup automatic bet settlement polling every 30 seconds
-  useEffect(() => {
-    const triggerBetScheduler = async () => {
-      try {
-        const { data: session } = await supabase.auth.getSession();
-        if (!session.session?.access_token) return;
-
-        const response = await fetch(
-          'https://ecglaiolgaauemmeojzm.supabase.co/functions/v1/bet-scheduler',
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-          }
-        );
-        
-        if (response.ok) {
-          const result = await response.json();
-          console.log('Bet scheduler result:', result);
-        } else {
-          console.warn('Bet scheduler failed:', response.status);
-        }
-      } catch (error) {
-        console.error('Error triggering bet scheduler:', error);
-      }
-    };
-
-    // Trigger scheduler immediately on mount
-    triggerBetScheduler();
-    
-    // Set up polling every 30 seconds
-    const interval = setInterval(triggerBetScheduler, 30000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   // Handle bet settlement from websocket
   const handleBetSettlement = async (betId: string, result: unknown) => {

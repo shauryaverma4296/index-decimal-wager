@@ -59,6 +59,44 @@ export const BettingApp = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Setup automatic bet settlement polling every 30 seconds
+  useEffect(() => {
+    const triggerBetScheduler = async () => {
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        if (!session.session?.access_token) return;
+
+        const response = await fetch(
+          "https://ecglaiolgaauemmeojzm.supabase.co/functions/v1/bet-scheduler",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${session.session.access_token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log("Bet scheduler result:", result);
+        } else {
+          console.warn("Bet scheduler failed:", response.status);
+        }
+      } catch (error) {
+        console.error("Error triggering bet scheduler:", error);
+      }
+    };
+
+    // Trigger scheduler immediately on mount
+    triggerBetScheduler();
+
+    // Set up polling every 30 seconds
+    const interval = setInterval(triggerBetScheduler, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const fetchWalletBalance = async (userId: string) => {
     try {
       const { data, error } = await supabase
