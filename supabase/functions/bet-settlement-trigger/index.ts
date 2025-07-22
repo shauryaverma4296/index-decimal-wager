@@ -65,7 +65,12 @@ serve(async (req) => {
 
     // Generate random stock value (in real app, fetch from external API)
     const stockValue = parseFloat((Math.random() * 10000 + 10000).toFixed(2))
-    const decimalPart = Math.floor((stockValue % 1) * 10)
+    
+    // Extract decimal digits properly
+    const valueStr = stockValue.toFixed(2) // Ensure 2 decimal places
+    const decimalStr = valueStr.split('.')[1] // Get "82" from "17753.82"
+    const firstDecimal = parseInt(decimalStr.charAt(0)) // First decimal digit (8)
+    const secondDecimal = parseInt(decimalStr.charAt(1)) // Second decimal digit (2)
 
     // Get the bet details
     const { data: bet, error: betError } = await supabaseClient
@@ -84,25 +89,44 @@ serve(async (req) => {
 
     switch (bet.bet_type) {
       case 'andar':
-        isWin = decimalPart === betNumber
+        // First decimal digit
+        isWin = firstDecimal === betNumber
         break
       case 'bahar':
-        isWin = decimalPart === betNumber
+        // Second decimal digit
+        isWin = secondDecimal === betNumber
         break
       case 'pair':
-        const lastTwoDigits = Math.floor(stockValue) % 100
-        isWin = lastTwoDigits === betNumber
+        // Both decimal digits as a two-digit number
+        const pairNumber = parseInt(decimalStr) // "82" becomes 82
+        isWin = pairNumber === betNumber
         break
     }
 
     const winAmount = isWin ? bet.amount * 0.95 : 0
+
+    // Store the appropriate decimal digit for display
+    let storedDecimal
+    switch (bet.bet_type) {
+      case 'andar':
+        storedDecimal = firstDecimal
+        break
+      case 'bahar':
+        storedDecimal = secondDecimal
+        break
+      case 'pair':
+        storedDecimal = parseInt(decimalStr)
+        break
+      default:
+        storedDecimal = firstDecimal
+    }
 
     // Update bet with results
     const { error: updateError } = await supabaseClient
       .from('bets')
       .update({
         actual_value: stockValue,
-        actual_decimal: decimalPart,
+        actual_decimal: storedDecimal,
         is_win: isWin,
         win_amount: winAmount,
         status: 'settled'
@@ -132,7 +156,7 @@ serve(async (req) => {
     const settlementData = {
       betId,
       actualValue: stockValue,
-      decimalPart,
+      decimalPart: storedDecimal,
       isWin
     }
 
