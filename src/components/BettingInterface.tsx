@@ -56,7 +56,7 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
   const [dataLoading, setDataLoading] = useState(true);
   const [pendingBets, setPendingBets] = useState<Map<string, any>>(new Map());
 
-  // Check if market is open based on timezone
+  // Check if market is open based on current time in market's timezone
   const isMarketOpen = (indexConfig: IndexConfig) => {
     const now = new Date();
     const formatter = new Intl.DateTimeFormat('en-US', {
@@ -69,19 +69,25 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
     const [hours, minutes] = timeString.split(':').map(Number);
     const currentTime = hours + minutes / 60;
     
-    // Debug logging for DAX
-    if (indexConfig.name === "Dax") {
-      console.log(`DAX Market Check:`, {
-        timezone: indexConfig.timezone,
-        currentLocalTime: timeString,
-        currentTimeDecimal: currentTime,
-        marketOpen: indexConfig.marketOpen,
-        marketClose: indexConfig.marketClose,
-        isOpen: currentTime >= indexConfig.marketOpen && currentTime <= indexConfig.marketClose
-      });
-    }
+    const isOpen = currentTime >= indexConfig.marketOpen && currentTime <= indexConfig.marketClose;
     
-    return currentTime >= indexConfig.marketOpen && currentTime <= indexConfig.marketClose;
+    // Debug logging for all markets
+    console.log(`${indexConfig.name} Market Check:`, {
+      timezone: indexConfig.timezone,
+      currentMarketTime: timeString,
+      currentTimeDecimal: currentTime,
+      marketOpen: indexConfig.marketOpen,
+      marketClose: indexConfig.marketClose,
+      isOpen: isOpen,
+      currentTimeIST: new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Kolkata',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: false,
+      }).format(now)
+    });
+    
+    return isOpen;
   };
 
   // Update market statuses and stock data
@@ -127,35 +133,44 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
     return () => clearInterval(interval);
   }, []);
 
-  // Get formatted time in IST (India timezone)
+  // Convert market time to IST and format
   const getFormattedTime = (indexConfig: IndexConfig, time: number) => {
     const hours = Math.floor(time);
     const minutes = Math.round((time % 1) * 60);
     
-    // Create a date object for the market's time
-    const now = new Date();
-    const targetTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0, 0);
+    // Create a date for today at the specified time in the market's timezone
+    const today = new Date();
+    const marketTimeToday = new Date(today.toLocaleString("en-US", {timeZone: indexConfig.timezone}));
+    marketTimeToday.setHours(hours, minutes, 0, 0);
     
-    // First get the time in market's timezone, then convert to IST
-    const marketTime = new Intl.DateTimeFormat('en-CA', {
-      timeZone: indexConfig.timezone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    }).format(targetTime);
-    
-    // Parse and create new date, then display in IST
-    const marketDate = new Date(marketTime.replace(',', ''));
-    
-    return new Intl.DateTimeFormat('en-US', {
+    // Convert this market time to IST
+    const formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Kolkata',
       hour: 'numeric',
-      minute: 'numeric',
+      minute: 'numeric',  
       hour12: true,
-    }).format(marketDate);
+    });
+    
+    // Get UTC time for the market time
+    const marketTimeUTC = new Date(marketTimeToday.toLocaleString("en-US", {timeZone: "UTC"}));
+    
+    // Create proper date by adjusting for timezone differences
+    const now = new Date();
+    const marketOffset = getTimezoneOffset(indexConfig.timezone);
+    const istOffset = getTimezoneOffset('Asia/Kolkata');
+    const offsetDiff = istOffset - marketOffset;
+    
+    const adjustedTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours + offsetDiff, minutes);
+    
+    return formatter.format(adjustedTime);
+  };
+  
+  // Get timezone offset in hours from UTC
+  const getTimezoneOffset = (timezone: string) => {
+    const now = new Date();
+    const utcDate = new Date(now.toLocaleString("en-US", {timeZone: "UTC"}));
+    const targetDate = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
+    return (targetDate.getTime() - utcDate.getTime()) / (1000 * 60 * 60);
   };
 
   // Get market close time for selected index in IST
@@ -163,32 +178,7 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
     const indexConfig = STOCK_INDICES.find(idx => idx.name === indexName);
     if (!indexConfig) return "";
     
-    // Create a date object for market close time in the market's timezone
-    const closeTime = new Date();
-    const hours = Math.floor(indexConfig.marketClose);
-    const minutes = Math.round((indexConfig.marketClose % 1) * 60);
-    closeTime.setHours(hours, minutes, 0, 0);
-    
-    // First get the time in market's timezone, then convert to IST
-    const marketTime = new Intl.DateTimeFormat('en-CA', {
-      timeZone: indexConfig.timezone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    }).format(closeTime);
-    
-    // Parse and create new date, then display in IST
-    const marketDate = new Date(marketTime.replace(',', ''));
-    
-    return new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Kolkata',
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: true,
-    }).format(marketDate);
+    return getFormattedTime(indexConfig, indexConfig.marketClose);
   };
 
   // Validate custom time is not after market close
