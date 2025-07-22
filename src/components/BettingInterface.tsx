@@ -650,36 +650,34 @@ export const BettingInterface = ({
                   );
                   return (
                     <SelectItem key={index.name} value={index.name}>
-                      <div className="w-full space-y-1">
-                        {/* Top row: Name and Status */}
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">{index.name}</span>
+                      <div className="w-full h-14 flex flex-col justify-center">
+                        {/* Stock name */}
+                        <div className="font-medium text-left">{index.name}</div>
+                        
+                        {/* Value, Badge, and Time row */}
+                        <div className="flex items-center gap-2 text-sm">
+                          {stockData[index.name] && (
+                            <>
+                              <span className="font-mono font-medium">
+                                {stockData[index.name].value.toFixed(2)}
+                              </span>
+                              {stockData[index.name].change >= 0 ? (
+                                <TrendingUp className="h-3 w-3 text-success" />
+                              ) : (
+                                <TrendingDown className="h-3 w-3 text-error" />
+                              )}
+                            </>
+                          )}
+                          
                           <Badge
                             variant={isOpen ? "default" : "destructive"}
                             className="text-xs shrink-0"
                           >
                             {isOpen ? "OPEN" : "CLOSED"}
                           </Badge>
-                        </div>
-                        
-                        {/* Bottom row: Value, Trend, and Market Hours */}
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            {stockData[index.name] && (
-                              <>
-                                <span className="font-mono font-medium">
-                                  {stockData[index.name].value.toFixed(2)}
-                                </span>
-                                {stockData[index.name].change >= 0 ? (
-                                  <TrendingUp className="h-3 w-3 text-success" />
-                                ) : (
-                                  <TrendingDown className="h-3 w-3 text-error" />
-                                )}
-                              </>
-                            )}
-                          </div>
+                          
                           {indexConfig && (
-                            <span className="text-xs text-muted-foreground shrink-0">
+                            <span className="text-xs text-muted-foreground">
                               {getFormattedTime(
                                 indexConfig,
                                 indexConfig.marketOpen
