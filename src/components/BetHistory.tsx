@@ -17,6 +17,8 @@ interface Bet {
   isWin: boolean;
   winAmount: number;
   timestamp: Date;
+  status: string;
+  settlementTime?: Date;
 }
 
 interface BetHistoryProps {
@@ -49,7 +51,9 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
         actualDecimal: bet.actual_decimal || 0,
         isWin: bet.is_win,
         winAmount: Number(bet.win_amount) || 0,
-        timestamp: new Date(bet.created_at)
+        timestamp: new Date(bet.created_at),
+        status: bet.status || 'pending',
+        settlementTime: bet.settlement_time ? new Date(bet.settlement_time) : undefined
       }));
       
       setBets(formattedBets);
@@ -98,19 +102,32 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        Bet: ₹{bet.amount} • Actual: {bet.actualValue.toFixed(2)} (Decimal: {bet.actualDecimal})
+                        Bet: ₹{bet.amount} {bet.status === 'pending' ? '• Pending Settlement' : `• Actual: ${bet.actualValue.toFixed(2)} (Decimal: ${bet.actualDecimal})`}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {bet.timestamp.toLocaleDateString()} {bet.timestamp.toLocaleTimeString()}
                       </p>
                     </div>
                     <div className="text-right">
-                      <Badge variant={bet.isWin ? "default" : "destructive"} className="mb-1">
-                        {bet.isWin ? "WON" : "LOST"}
-                      </Badge>
-                      <p className={`text-lg font-bold ${bet.isWin ? "text-success" : "text-error"}`}>
-                        {bet.isWin ? `+₹${bet.winAmount.toFixed(2)}` : `-₹${bet.amount}`}
-                      </p>
+                      {bet.status === 'pending' ? (
+                        <>
+                          <Badge variant="secondary" className="mb-1">
+                            PENDING
+                          </Badge>
+                          <p className="text-sm text-muted-foreground">
+                            Settlement: {bet.settlementTime?.toLocaleTimeString() || 'Unknown'}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <Badge variant={bet.isWin ? "default" : "destructive"} className="mb-1">
+                            {bet.isWin ? "WON" : "LOST"}
+                          </Badge>
+                          <p className={`text-lg font-bold ${bet.isWin ? "text-success" : "text-error"}`}>
+                            {bet.isWin ? `+₹${bet.winAmount.toFixed(2)}` : `-₹${bet.amount}`}
+                          </p>
+                        </>
+                      )}
                     </div>
                   </div>
                 </Card>
