@@ -43,10 +43,12 @@ const STOCK_INDICES = [
 
 export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPlaced }: BettingInterfaceProps) => {
   const { toast } = useToast();
-  const [selectedIndex, setSelectedIndex] = useState<string>("");
+  const [selectedIndex, setSelectedIndex] = useState<string>(STOCK_INDICES[0].name); // Default to first index
   const [betAmount, setBetAmount] = useState<string>("");
   const [betType, setBetType] = useState<string>("");
   const [betNumber, setBetNumber] = useState<string>("");
+  const [settlementTime, setSettlementTime] = useState<string>("market_close");
+  const [customTime, setCustomTime] = useState<string>("");
   const [stockData, setStockData] = useState<Record<string, StockIndex>>({});
   const [marketOpen, setMarketOpen] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -95,19 +97,48 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
 
   // Check market status based on selected index
   useEffect(() => {
-    if (selectedIndex) {
-      const indexConfig = STOCK_INDICES.find(idx => idx.name === selectedIndex);
-      if (indexConfig) {
-        setMarketOpen(isMarketOpen(indexConfig));
-      }
+    const indexConfig = STOCK_INDICES.find(idx => idx.name === selectedIndex);
+    if (indexConfig) {
+      setMarketOpen(isMarketOpen(indexConfig));
     }
   }, [selectedIndex]);
 
+  // Get market close time for selected index
+  const getMarketCloseTime = (indexName: string) => {
+    const indexConfig = STOCK_INDICES.find(idx => idx.name === indexName);
+    if (!indexConfig) return "";
+    
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: indexConfig.timezone,
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true,
+    });
+    
+    // Create a date object for market close time
+    const closeTime = new Date();
+    const hours = Math.floor(indexConfig.marketClose);
+    const minutes = (indexConfig.marketClose % 1) * 60;
+    closeTime.setHours(hours, minutes, 0, 0);
+    
+    return formatter.format(closeTime);
+  };
+
   const placeBet = async () => {
-    if (!selectedIndex || !betAmount || !betType || !betNumber) {
+    if (!selectedIndex || !betAmount || !betType || !betNumber || !settlementTime) {
       toast({
         title: "Error",
         description: "Please fill all fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (settlementTime === "custom" && !customTime) {
+      toast({
+        title: "Error",
+        description: "Please specify custom settlement time",
         variant: "destructive",
       });
       return;
@@ -340,6 +371,40 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
                 />
               </div>
 
+              {/* Settlement Time */}
+              <div className="space-y-2">
+                <Label>When to declare result?</Label>
+                <Select value={settlementTime} onValueChange={setSettlementTime}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose settlement time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="market_close">
+                      End of day when market closes
+                      {selectedIndex && (
+                        <span className="text-xs text-muted-foreground ml-2">
+                          ({getMarketCloseTime(selectedIndex)})
+                        </span>
+                      )}
+                    </SelectItem>
+                    <SelectItem value="custom">Custom time</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Custom Time Input */}
+              {settlementTime === "custom" && (
+                <div className="space-y-2">
+                  <Label>Custom Settlement Time</Label>
+                  <Input
+                    type="time"
+                    value={customTime}
+                    onChange={(e) => setCustomTime(e.target.value)}
+                    placeholder="Select time"
+                  />
+                </div>
+              )}
+
               {/* Bet Amount */}
               <div className="space-y-2">
                 <Label>Bet Amount (₹10 - ₹500)</Label>
@@ -360,7 +425,7 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
               <Button 
                 onClick={placeBet} 
                 className="w-full bg-gradient-to-r from-primary to-success hover:from-primary/90 hover:to-success/90"
-                disabled={!marketOpen || loading || !selectedIndex || !betType || !betNumber || !betAmount}
+                disabled={!marketOpen || loading || !selectedIndex || !betType || !betNumber || !betAmount || !settlementTime || (settlementTime === "custom" && !customTime)}
               >
                 {loading ? (
                   <LoadingSpinner size="sm" text="Placing bet..." />
