@@ -53,6 +53,7 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
   const [marketOpen, setMarketOpen] = useState(true);
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
+  const [pendingBets, setPendingBets] = useState<Map<string, any>>(new Map());
 
   // Check if market is open based on timezone
   const isMarketOpen = (indexConfig: IndexConfig) => {
@@ -125,6 +126,83 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
     return formatter.format(closeTime);
   };
 
+  // Validate custom time is not after market close
+  const validateCustomTime = (time: string, indexName: string) => {
+    if (!time || !indexName) return true;
+    
+    const indexConfig = STOCK_INDICES.find(idx => idx.name === indexName);
+    if (!indexConfig) return true;
+    
+    const [hours, minutes] = time.split(':').map(Number);
+    const customTimeDecimal = hours + minutes / 60;
+    
+    return customTimeDecimal <= indexConfig.marketClose;
+  };
+
+  // Setup websocket connection for real-time bet settlement
+  useEffect(() => {
+    const wsUrl = `wss://${window.location.host}/ws/betting`;
+    const ws = new WebSocket(wsUrl);
+    
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'bet_settlement') {
+        handleBetSettlement(data.betId, data.result);
+      }
+    };
+    
+    return () => ws.close();
+  }, []);
+
+  // Handle bet settlement from websocket
+  const handleBetSettlement = async (betId: string, result: any) => {
+    const bet = pendingBets.get(betId);
+    if (!bet) return;
+    
+    const isWin = result.isWin;
+    const winAmount = isWin ? bet.amount * 0.95 : 0;
+    
+    // Update bet in database with result
+    await supabase
+      .from("bets")
+      .update({
+        actual_value: result.actualValue,
+        actual_decimal: result.decimalPart,
+        is_win: isWin,
+        win_amount: winAmount
+      })
+      .eq('id', betId);
+    
+    // If win, add winning amount to wallet
+    if (isWin) {
+      await supabase.rpc("update_wallet_balance", {
+        p_user_id: user.id,
+        p_amount: winAmount,
+        p_type: "bet_win",
+        p_description: `Winnings from ${bet.indexName} bet`,
+        p_reference_id: betId
+      });
+    }
+    
+    toast({
+      title: isWin ? "Congratulations!" : "Better luck next time!",
+      description: isWin 
+        ? `Your bet settled! You won ₹${winAmount.toFixed(2)}!`
+        : `Your bet settled. You lost ₹${bet.amount}. Try again!`,
+      variant: isWin ? "default" : "destructive",
+    });
+    
+    // Remove from pending bets
+    setPendingBets(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(betId);
+      return newMap;
+    });
+    
+    onWalletUpdate(isWin ? walletBalance + winAmount : walletBalance);
+    onBetPlaced();
+  };
+
   const placeBet = async () => {
     if (!selectedIndex || !betAmount || !betType || !betNumber || !settlementTime) {
       toast({
@@ -139,6 +217,16 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
       toast({
         title: "Error",
         description: "Please specify custom settlement time",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate custom time is not after market close
+    if (settlementTime === "custom" && !validateCustomTime(customTime, selectedIndex)) {
+      toast({
+        title: "Error",
+        description: "Settlement time cannot be after market close",
         variant: "destructive",
       });
       return;
@@ -189,21 +277,7 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
     setLoading(true);
 
     try {
-      const currentValue = stockData[selectedIndex]?.value || 0;
-      const decimalPart = Math.floor((currentValue % 1) * 100);
-      
-      let isWin = false;
-      if (betType === "andar") {
-        isWin = Math.floor(decimalPart / 10) === Math.floor(number / 10);
-      } else if (betType === "bahar") {
-        isWin = decimalPart % 10 === number % 10;
-      } else if (betType === "pair") {
-        isWin = decimalPart === number;
-      }
-
-      const winAmount = isWin ? amount * 0.95 : 0;
-
-      // Deduct bet amount from wallet
+      // Deduct bet amount from wallet first
       await supabase.rpc("update_wallet_balance", {
         p_user_id: user.id,
         p_amount: amount,
@@ -212,7 +286,21 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
         p_reference_id: `bet_${Date.now()}`
       });
 
-      // Save bet to database
+      // Calculate settlement time
+      let settlementDateTime = new Date();
+      if (settlementTime === "market_close") {
+        const indexConfig = STOCK_INDICES.find(idx => idx.name === selectedIndex);
+        if (indexConfig) {
+          const hours = Math.floor(indexConfig.marketClose);
+          const minutes = (indexConfig.marketClose % 1) * 60;
+          settlementDateTime.setHours(hours, minutes, 0, 0);
+        }
+      } else if (settlementTime === "custom" && customTime) {
+        const [hours, minutes] = customTime.split(':').map(Number);
+        settlementDateTime.setHours(hours, minutes, 0, 0);
+      }
+
+      // Save bet to database without immediate settlement
       const { data: betData, error: betError } = await supabase
         .from("bets")
         .insert({
@@ -221,36 +309,53 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
           amount,
           bet_type: betType,
           bet_number: number,
-          actual_value: currentValue,
-          actual_decimal: decimalPart,
-          is_win: isWin,
-          win_amount: winAmount
+          actual_value: null, // Will be set at settlement time
+          actual_decimal: null, // Will be set at settlement time
+          is_win: null, // Will be determined at settlement time
+          win_amount: 0
         })
         .select()
         .single();
 
       if (betError) throw betError;
 
-      // If win, add winning amount to wallet
-      if (isWin) {
-        await supabase.rpc("update_wallet_balance", {
-          p_user_id: user.id,
-          p_amount: winAmount,
-          p_type: "bet_win",
-          p_description: `Winnings from ${selectedIndex} bet`,
-          p_reference_id: betData.id
-        });
-      }
+      // Add to pending bets for settlement tracking
+      setPendingBets(prev => new Map(prev.set(betData.id, {
+        amount,
+        indexName: selectedIndex,
+        betType,
+        betNumber: number,
+        settlementTime: settlementDateTime
+      })));
 
-      // Update local wallet balance
-      onWalletUpdate(isWin ? walletBalance - amount + winAmount : walletBalance - amount);
+      // Schedule bet settlement (in a real app, this would be handled by a backend service)
+      setTimeout(() => {
+        const currentValue = stockData[selectedIndex]?.value || Math.random() * 10000 + 10000;
+        const decimalPart = Math.floor((currentValue % 1) * 100);
+        
+        let isWin = false;
+        if (betType === "andar") {
+          isWin = Math.floor(decimalPart / 10) === Math.floor(number / 10);
+        } else if (betType === "bahar") {
+          isWin = decimalPart % 10 === number % 10;
+        } else if (betType === "pair") {
+          isWin = decimalPart === number;
+        }
+
+        handleBetSettlement(betData.id, {
+          actualValue: currentValue,
+          decimalPart,
+          isWin
+        });
+      }, Math.max(0, settlementDateTime.getTime() - Date.now()));
+
+      // Update local wallet balance (deduct bet amount)
+      onWalletUpdate(walletBalance - amount);
       
       toast({
-        title: isWin ? "Congratulations!" : "Better luck next time!",
-        description: isWin 
-          ? `You won ₹${winAmount.toFixed(2)}!`
-          : `You lost ₹${amount}. Try again!`,
-        variant: isWin ? "default" : "destructive",
+        title: "Bet Placed Successfully!",
+        description: `Your bet will be settled at ${settlementDateTime.toLocaleTimeString()}`,
+        variant: "default",
       });
 
       // Reset form
@@ -357,7 +462,23 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
                 <Input
                   type="number"
                   value={betNumber}
-                  onChange={(e) => setBetNumber(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    
+                    // For Andar/Bahar, restrict to single digit and disable after entry
+                    if ((betType === "andar" || betType === "bahar")) {
+                      if (value.length <= 1 && (value === "" || (parseInt(value) >= 0 && parseInt(value) <= 9))) {
+                        setBetNumber(value);
+                      }
+                    } else if (betType === "pair") {
+                      // For Pair, allow up to 2 digits
+                      if (value.length <= 2 && (value === "" || (parseInt(value) >= 0 && parseInt(value) <= 99))) {
+                        setBetNumber(value);
+                      }
+                    } else {
+                      setBetNumber(value);
+                    }
+                  }}
                   placeholder={
                     betType === "pair" 
                       ? "Enter two digits (00-99)" 
@@ -367,7 +488,8 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
                   }
                   min="0"
                   max={betType === "pair" ? "99" : betType ? "9" : "99"}
-                  disabled={!betType}
+                  disabled={!betType || ((betType === "andar" || betType === "bahar") && betNumber.length >= 1)}
+                  maxLength={betType === "pair" ? 2 : 1}
                 />
               </div>
 
@@ -399,9 +521,27 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
                   <Input
                     type="time"
                     value={customTime}
-                    onChange={(e) => setCustomTime(e.target.value)}
+                    onChange={(e) => {
+                      const time = e.target.value;
+                      setCustomTime(time);
+                      
+                      // Show warning if time is after market close
+                      if (time && !validateCustomTime(time, selectedIndex)) {
+                        toast({
+                          title: "Warning",
+                          description: "Selected time is after market close",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
                     placeholder="Select time"
+                    className={!validateCustomTime(customTime, selectedIndex) ? "border-destructive" : ""}
                   />
+                  {customTime && !validateCustomTime(customTime, selectedIndex) && (
+                    <p className="text-xs text-destructive">
+                      Time must be before market close ({getMarketCloseTime(selectedIndex)})
+                    </p>
+                  )}
                 </div>
               )}
 
