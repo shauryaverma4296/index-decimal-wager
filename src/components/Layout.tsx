@@ -43,8 +43,39 @@ export const Layout = ({
     <div className="min-h-screen bg-background">
       {/* Header with persistent wallet balance */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
+        <div className="w-full mx-auto px-3 sm:px-4 py-2 sm:py-3">
+          {/* Mobile Layout */}
+          <div className="flex flex-col gap-2 md:hidden">
+            {/* Top row: Logo and Sign Out */}
+            <div className="flex items-center justify-between">
+              <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
+                Stock Index Betting
+              </h1>
+              <Button variant="outline" size="sm" onClick={onSignOut}>
+                <LogOut className="h-4 w-4" />
+                <span className="sr-only">Sign Out</span>
+              </Button>
+            </div>
+            
+            {/* Bottom row: Market Status and Wallet */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                <span>Market:</span>
+                <Badge variant={marketOpen ? "default" : "destructive"} className="text-xs px-1.5 py-0.5">
+                  {marketOpen ? "OPEN" : "CLOSED"}
+                </Badge>
+              </div>
+              
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-muted/50 rounded-lg">
+                <Wallet className="h-3 w-3 text-primary" />
+                <span className="text-xs font-medium">₹{walletBalance.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop Layout */}
+          <div className="hidden md:flex items-center justify-between">
             {/* Logo/Title */}
             <div className="flex items-center gap-4">
               <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
@@ -80,43 +111,46 @@ export const Layout = ({
 
       {/* Navigation */}
       <nav className="border-b bg-card/30">
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center gap-1">
+        <div className="w-full mx-auto px-3 sm:px-4 py-2 sm:py-3">
+          <div className="flex items-center gap-1 overflow-x-auto">
             <Button
               variant={currentSection === "betting" ? "default" : "ghost"}
               size="sm"
               onClick={() => onSectionChange("betting")}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap"
             >
-              <Target className="h-4 w-4" />
-              Place Bets
+              <Target className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Place Bets</span>
+              <span className="xs:hidden">Bet</span>
             </Button>
             
             <Button
               variant={currentSection === "wallet" ? "default" : "ghost"}
               size="sm"
               onClick={() => onSectionChange("wallet")}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap"
             >
-              <Wallet className="h-4 w-4" />
-              Manage Wallet
+              <Wallet className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Manage Wallet</span>
+              <span className="xs:hidden">Wallet</span>
             </Button>
             
             <Button
               variant={currentSection === "history" ? "default" : "ghost"}
               size="sm"
               onClick={() => onSectionChange("history")}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap"
             >
-              <TrendingUp className="h-4 w-4" />
-              Bet History
+              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Bet History</span>
+              <span className="xs:hidden">History</span>
             </Button>
           </div>
         </div>
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 py-6">
+      <main className="w-full mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {children}
       </main>
     </div>
