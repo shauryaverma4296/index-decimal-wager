@@ -28,7 +28,12 @@ serve(async (req) => {
     return new Response("Expected websocket", { status: 426 })
   }
 
-  const { socket, response } = Deno.upgradeWebSocket(req)
+  const webSocketPair = new WebSocketPair()
+  const [client, server] = Object.values(webSocketPair)
+  
+  const socket = server
+  
+  server.accept()
   const connectionId = crypto.randomUUID()
   
   socket.addEventListener("open", () => {
@@ -69,7 +74,10 @@ serve(async (req) => {
     connections.delete(connectionId)
   })
 
-  return response
+  return new Response(null, {
+    status: 101,
+    webSocket: client,
+  })
 })
 
 // Function to broadcast bet settlement to all connected clients
