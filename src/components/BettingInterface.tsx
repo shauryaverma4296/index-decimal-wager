@@ -181,7 +181,7 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
     return getFormattedTime(indexConfig, indexConfig.marketClose);
   };
 
-  // Validate custom time is not after market close (convert IST input to market time)
+  // Validate custom time is not in the past and not after market close
   const validateCustomTime = (time: string, indexName: string) => {
     if (!time || !indexName) return true;
     
@@ -195,47 +195,55 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
     const [hours, minutes] = time.split(':').map(Number);
     const customTimeDecimal = hours + minutes / 60;
     
-    // Since the user is entering time in IST (shown in UI), we need to convert it to market time for validation
-    // Create a date for today at the custom time in IST
-    const today = new Date();
-    const istTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes, 0, 0);
-    
-    // Convert IST time to market timezone
-    const marketTimeFormatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: indexConfig.timezone,
+    // Get current time in IST (client timezone)
+    const now = new Date();
+    const currentISTTime = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
       hour: 'numeric',
       minute: 'numeric',
       hour12: false,
-    });
+    }).format(now);
     
-    // Get what this IST time would be in the market's timezone
-    const istFormatter = new Intl.DateTimeFormat('sv-SE', {
-      timeZone: 'Asia/Kolkata',
-    });
-    const istDateString = istFormatter.format(istTime);
-    const istDateObj = new Date(istDateString + 'T' + time.padStart(5, '0') + ':00');
+    const [currentHours, currentMinutes] = currentISTTime.split(':').map(Number);
+    const currentTimeDecimal = currentHours + currentMinutes / 60;
     
-    const marketTimeString = marketTimeFormatter.format(istDateObj);
-    const [marketHours, marketMinutes] = marketTimeString.split(':').map(Number);
-    const marketTimeDecimal = marketHours + marketMinutes / 60;
+    // Check if custom time is in the past
+    const isInPast = customTimeDecimal <= currentTimeDecimal;
+    
+    // Get market close time in IST for comparison
+    const marketCloseTimeIST = getFormattedTime(indexConfig, indexConfig.marketClose);
+    
+    // Convert market close time to decimal for comparison
+    const marketCloseMatch = marketCloseTimeIST.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    let marketCloseDecimal = 23; // Default to 11 PM if parsing fails
+    
+    if (marketCloseMatch) {
+      let closeHours = parseInt(marketCloseMatch[1]);
+      const closeMinutes = parseInt(marketCloseMatch[2]);
+      const isPM = marketCloseMatch[3].toUpperCase() === 'PM';
+      
+      if (isPM && closeHours !== 12) closeHours += 12;
+      if (!isPM && closeHours === 12) closeHours = 0;
+      
+      marketCloseDecimal = closeHours + closeMinutes / 60;
+    }
+    
+    const isAfterMarketClose = customTimeDecimal > marketCloseDecimal;
     
     // Add debug logging
     console.log(`Validating custom time for ${indexName}:`, {
       inputTime: time,
       inputTimeDecimal: customTimeDecimal,
-      marketTimeDecimal: marketTimeDecimal,
-      marketClose: indexConfig.marketClose,
-      isValid: marketTimeDecimal <= indexConfig.marketClose
+      currentTimeIST: currentISTTime,
+      currentTimeDecimal: currentTimeDecimal,
+      marketCloseTimeIST: marketCloseTimeIST,
+      marketCloseDecimal: marketCloseDecimal,
+      isInPast: isInPast,
+      isAfterMarketClose: isAfterMarketClose,
+      isValid: !isInPast && !isAfterMarketClose
     });
     
-    // For now, let's just validate against the displayed market close time in IST
-    // Get market close time in IST
-    const marketCloseTimeIST = getFormattedTime(indexConfig, indexConfig.marketClose);
-    console.log(`Market close time in IST: ${marketCloseTimeIST}`);
-    
-    // Since validation is complex with timezone conversion, let's be more lenient
-    // and just check if the time is reasonable (before 11 PM IST)
-    return customTimeDecimal <= 23;
+    return !isInPast && !isAfterMarketClose;
   };
 
   // Setup websocket connection for real-time bet settlement (only once)
@@ -348,11 +356,11 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
       return;
     }
 
-    // Validate custom time is not after market close
+    // Validate custom time is not in past and not after market close
     if (settlementTime === "custom" && !validateCustomTime(customTime, selectedIndex)) {
       toast({
         title: "Error",
-        description: "Settlement time cannot be after market close",
+        description: "Settlement time cannot be in the past or after market close",
         variant: "destructive",
       });
       return;
@@ -680,7 +688,7 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
                   />
                   {customTime && !validateCustomTime(customTime, selectedIndex) && (
                     <p className="text-xs text-destructive">
-                      Time must be before market close ({getMarketCloseTime(selectedIndex)})
+                      Time cannot be in the past or after market close ({getMarketCloseTime(selectedIndex)})
                     </p>
                   )}
                 </div>
