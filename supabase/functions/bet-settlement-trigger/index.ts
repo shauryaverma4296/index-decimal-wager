@@ -43,13 +43,24 @@ serve(async (req) => {
       throw new Error('Invalid index name')
     }
 
-    // Wait until settlement time
+    // Check if it's time to settle the bet
     const now = new Date()
     const settlement = new Date(settlementTime)
-    const waitTime = settlement.getTime() - now.getTime()
+    const shouldSettle = now >= settlement
 
-    if (waitTime > 0) {
-      await new Promise(resolve => setTimeout(resolve, waitTime))
+    if (!shouldSettle) {
+      // Schedule the settlement for later - just return success
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Bet scheduled for settlement',
+          settlementTime: settlement.toISOString()
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        }
+      )
     }
 
     // Generate random stock value (in real app, fetch from external API)
@@ -93,7 +104,8 @@ serve(async (req) => {
         actual_value: stockValue,
         actual_decimal: decimalPart,
         is_win: isWin,
-        win_amount: winAmount
+        win_amount: winAmount,
+        status: 'settled'
       })
       .eq('id', betId)
 

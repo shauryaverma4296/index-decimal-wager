@@ -25,6 +25,8 @@ export type Database = {
           id: string
           index_name: string
           is_win: boolean | null
+          settlement_time: string | null
+          status: string
           user_id: string
           win_amount: number | null
         }
@@ -38,6 +40,8 @@ export type Database = {
           id?: string
           index_name: string
           is_win?: boolean | null
+          settlement_time?: string | null
+          status?: string
           user_id: string
           win_amount?: number | null
         }
@@ -51,6 +55,8 @@ export type Database = {
           id?: string
           index_name?: string
           is_win?: boolean | null
+          settlement_time?: string | null
+          status?: string
           user_id?: string
           win_amount?: number | null
         }

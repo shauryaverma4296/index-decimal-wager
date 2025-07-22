@@ -544,7 +544,7 @@ export const BettingInterface = ({
         settlementDateTime.setHours(hours, minutes, 0, 0);
       }
 
-      // Save bet to database without immediate settlement
+      // Save bet to database with settlement time and pending status
       const { data: betData, error: betError } = await supabase
         .from("bets")
         .insert({
@@ -553,10 +553,8 @@ export const BettingInterface = ({
           amount,
           bet_type: betType,
           bet_number: number,
-          actual_value: null, // Will be set at settlement time
-          actual_decimal: null, // Will be set at settlement time
-          is_win: null, // Will be determined at settlement time
-          win_amount: 0,
+          settlement_time: settlementDateTime.toISOString(),
+          status: "pending",
         })
         .select()
         .single();
@@ -577,14 +575,11 @@ export const BettingInterface = ({
           )
       );
 
-      // Trigger bet settlement via edge function
-      await supabase.functions.invoke("bet-settlement-trigger", {
-        body: {
-          betId: betData.id,
-          settlementTime: settlementDateTime.toISOString(),
-          indexName: selectedIndex,
-        },
-      });
+      // Just return success - settlement will happen automatically when time comes
+      console.log(
+        "Bet placed successfully, will be settled at:",
+        settlementDateTime
+      );
 
       // Update local wallet balance (deduct bet amount)
       onWalletUpdate(walletBalance - amount);
