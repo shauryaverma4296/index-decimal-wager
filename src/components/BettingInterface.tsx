@@ -149,19 +149,19 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
     const indexConfig = STOCK_INDICES.find(idx => idx.name === indexName);
     if (!indexConfig) return "";
     
-    const now = new Date();
+    // Create a date object for market close time in the market's timezone
+    const closeTime = new Date();
+    const hours = Math.floor(indexConfig.marketClose);
+    const minutes = Math.round((indexConfig.marketClose % 1) * 60);
+    closeTime.setHours(hours, minutes, 0, 0);
+    
+    // Format in the market's timezone, then convert for display
     const formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: indexConfig.timezone,
       hour: 'numeric',
       minute: 'numeric',
       hour12: true,
     });
-    
-    // Create a date object for market close time
-    const closeTime = new Date();
-    const hours = Math.floor(indexConfig.marketClose);
-    const minutes = (indexConfig.marketClose % 1) * 60;
-    closeTime.setHours(hours, minutes, 0, 0);
     
     return formatter.format(closeTime);
   };
