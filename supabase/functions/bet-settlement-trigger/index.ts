@@ -43,14 +43,10 @@ serve(async (req) => {
       throw new Error('Invalid index name')
     }
 
-    // Check if it's time to settle the bet (using India timezone)
+    // Check if it's time to settle the bet
     const now = new Date()
     const settlement = new Date(settlementTime)
-    
-    // Convert both times to India timezone for comparison
-    const nowIndia = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }))
-    const settlementIndia = new Date(settlement.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }))
-    const shouldSettle = nowIndia >= settlementIndia
+    const shouldSettle = now >= settlement
 
     if (!shouldSettle) {
       // Schedule the settlement for later - just return success
