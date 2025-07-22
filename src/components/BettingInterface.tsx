@@ -650,15 +650,20 @@ export const BettingInterface = ({
                   );
                   return (
                     <SelectItem key={index.name} value={index.name}>
-                      <div className="w-full h-14 flex flex-col justify-center">
-                        {/* Stock name */}
-                        <div className="font-medium text-left">{index.name}</div>
-                        
-                        {/* Value, Badge, and Time row */}
-                        <div className="flex items-center gap-2 text-sm">
+                      <div className="flex items-center justify-between w-full min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span>{index.name}</span>
+                          <Badge
+                            variant={isOpen ? "default" : "destructive"}
+                            className="text-xs"
+                          >
+                            {isOpen ? "OPEN" : "CLOSED"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 ml-4">
                           {stockData[index.name] && (
                             <>
-                              <span className="font-mono font-medium">
+                              <span className="font-mono text-sm">
                                 {stockData[index.name].value.toFixed(2)}
                               </span>
                               {stockData[index.name].change >= 0 ? (
@@ -668,21 +673,13 @@ export const BettingInterface = ({
                               )}
                             </>
                           )}
-                          
-                          <Badge
-                            variant={isOpen ? "default" : "destructive"}
-                            className="text-xs shrink-0"
-                          >
-                            {isOpen ? "OPEN" : "CLOSED"}
-                          </Badge>
-                          
                           {indexConfig && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground ml-2">
                               {getFormattedTime(
                                 indexConfig,
                                 indexConfig.marketOpen
                               )}{" "}
-                              - {" "}
+                              -{" "}
                               {getFormattedTime(
                                 indexConfig,
                                 indexConfig.marketClose
