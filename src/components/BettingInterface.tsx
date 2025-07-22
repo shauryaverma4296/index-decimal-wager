@@ -258,57 +258,65 @@ export const BettingInterface = ({
     // Check if custom time is in the past (only for today)
     const isInPast = customTimeDecimal <= currentTimeDecimal;
 
-    // Convert market close time from market timezone to IST decimal
-    const today = new Date();
+    // Calculate when market closes in IST
     const marketCloseHours = Math.floor(indexConfig.marketClose);
     const marketCloseMinutes = Math.round((indexConfig.marketClose % 1) * 60);
     
-    // Create a date object for market close time in market's timezone
-    const marketCloseDate = new Date();
-    const tempDate = new Date(marketCloseDate.toLocaleString("en-US", { timeZone: indexConfig.timezone }));
-    tempDate.setHours(marketCloseHours, marketCloseMinutes, 0, 0);
+    // Create market close time in market's timezone for today
+    const marketCloseToday = new Date();
+    marketCloseToday.setHours(marketCloseHours, marketCloseMinutes, 0, 0);
     
-    // Get the market close time in IST
-    const marketCloseIST = new Date(tempDate.getTime() + (getTimezoneOffset("Asia/Kolkata") - getTimezoneOffset(indexConfig.timezone)) * 60 * 60 * 1000);
+    // Convert market close to IST
+    const marketCloseIST = new Date(marketCloseToday.toLocaleString("en-US", { timeZone: indexConfig.timezone }));
+    const marketCloseISTDecimal = marketCloseIST.getHours() + marketCloseIST.getMinutes() / 60;
     
-    // If market close is next day (like US markets closing early morning IST), handle day rollover
-    if (marketCloseIST.getDate() !== today.getDate()) {
-      // Market closes tomorrow in IST, so allow times until end of day
-      const marketCloseDecimal = marketCloseIST.getHours() + marketCloseIST.getMinutes() / 60;
-      const isAfterMarketClose = customTimeDecimal > marketCloseDecimal;
+    // For markets that close the next day in IST (like US markets)
+    // We need to check if the market close time converted to IST is actually tomorrow
+    const istOffset = 5.5; // IST is UTC+5:30
+    const marketOffset = getTimezoneOffset(indexConfig.timezone);
+    const timeDiff = istOffset - marketOffset;
+    
+    // If adding timezone difference pushes the close time past midnight, it's next day
+    const adjustedCloseTime = indexConfig.marketClose + timeDiff;
+    const closesNextDayInIST = adjustedCloseTime >= 24;
+    
+    let isAfterMarketClose;
+    
+    if (closesNextDayInIST) {
+      // Market closes tomorrow in IST - allow any time from now until end of day
+      // The actual close time will be early hours of tomorrow (like 1:30 AM)
+      const tomorrowCloseTime = adjustedCloseTime - 24; // Convert to next day hours
       
-      console.log(`Validating custom time for ${indexName} (next day close):`, {
-        inputTime: time,
-        inputTimeDecimal: customTimeDecimal,
-        currentTimeIST: currentISTTime,
-        currentTimeDecimal: currentTimeDecimal,
-        marketCloseIST: marketCloseIST.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata' }),
-        marketCloseDecimal: marketCloseDecimal,
-        isInPast: isInPast,
-        isAfterMarketClose: isAfterMarketClose,
-        isValid: !isInPast && !isAfterMarketClose,
-      });
-      
-      return !isInPast && !isAfterMarketClose;
+      // For times today (current day), allow anything after current time
+      // For times that look like tomorrow (0:00 to close time), check separately
+      if (customTimeDecimal < 6) { // Assuming times 0:00-6:00 are meant for tomorrow
+        isAfterMarketClose = customTimeDecimal > tomorrowCloseTime;
+      } else {
+        // Times after 6:00 are for today, always valid if not in past
+        isAfterMarketClose = false;
+      }
     } else {
-      // Market closes today in IST
-      const marketCloseDecimal = marketCloseIST.getHours() + marketCloseIST.getMinutes() / 60;
-      const isAfterMarketClose = customTimeDecimal > marketCloseDecimal;
-      
-      console.log(`Validating custom time for ${indexName} (same day close):`, {
-        inputTime: time,
-        inputTimeDecimal: customTimeDecimal,
-        currentTimeIST: currentISTTime,
-        currentTimeDecimal: currentTimeDecimal,
-        marketCloseIST: marketCloseIST.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata' }),
-        marketCloseDecimal: marketCloseDecimal,
-        isInPast: isInPast,
-        isAfterMarketClose: isAfterMarketClose,
-        isValid: !isInPast && !isAfterMarketClose,
-      });
-      
-      return !isInPast && !isAfterMarketClose;
+      // Market closes today in IST - normal validation
+      isAfterMarketClose = customTimeDecimal > marketCloseISTDecimal;
     }
+
+    console.log(`Validating custom time for ${indexName}:`, {
+      inputTime: time,
+      inputTimeDecimal: customTimeDecimal,
+      currentTimeIST: currentISTTime,
+      currentTimeDecimal: currentTimeDecimal,
+      marketCloseInMarketTZ: `${marketCloseHours}:${marketCloseMinutes}`,
+      marketOffset: marketOffset,
+      istOffset: istOffset,
+      timeDiff: timeDiff,
+      adjustedCloseTime: adjustedCloseTime,
+      closesNextDayInIST: closesNextDayInIST,
+      isInPast: isInPast,
+      isAfterMarketClose: isAfterMarketClose,
+      isValid: !isInPast && !isAfterMarketClose,
+    });
+
+    return !isInPast && !isAfterMarketClose;
   };
 
   // Setup real-time bet settlement monitoring using Supabase realtime
