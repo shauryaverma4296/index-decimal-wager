@@ -79,7 +79,12 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
     console.log('Setting up realtime subscription for user:', user.id);
     
     const channel = supabase
-      .channel(`bet-history-updates-${user.id}`)
+      .channel(`bet-history-updates-${user.id}`, {
+        config: {
+          broadcast: { self: true },
+          presence: { key: user.id }
+        }
+      })
       .on(
         'postgres_changes',
         {
@@ -89,7 +94,10 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('Bet update received in history:', payload);
+          console.log('🔄 Bet update received in history:', payload);
+          console.log('Event type:', payload.eventType);
+          console.log('Old data:', payload.old);
+          console.log('New data:', payload.new);
           
           if (payload.eventType === 'INSERT') {
             // Handle new bet insertion
@@ -110,6 +118,7 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                 : undefined,
             };
 
+            console.log('📝 Adding new bet to history:', newBet);
             setBets(prev => [newBet, ...prev]);
             
             toast({
@@ -119,55 +128,73 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
             });
 
           } else if (payload.eventType === 'UPDATE') {
+            console.log('🔄 Processing bet update...');
             // Handle bet settlement with animation
             const updatedBet = payload.new;
-            const wasSettled = payload.old.status === 'pending' && updatedBet.status === 'settled';
+            const oldBet = payload.old;
+            const wasSettled = oldBet?.status === 'pending' && updatedBet.status === 'settled';
             
-            setBets(prev => prev.map(bet => {
-              if (bet.id === updatedBet.id) {
-                const updated = {
-                  ...bet,
-                  actualValue: Number(updatedBet.actual_value) || 0,
-                  actualDecimal: updatedBet.actual_decimal || 0,
-                  isWin: updatedBet.is_win,
-                  winAmount: Number(updatedBet.win_amount) || 0,
-                  status: updatedBet.status || "pending",
-                };
+            console.log('Was settled?', wasSettled);
+            console.log('Old status:', oldBet?.status, 'New status:', updatedBet.status);
+            
+            setBets(prev => {
+              const updated = prev.map(bet => {
+                if (bet.id === updatedBet.id) {
+                  console.log('🎯 Updating bet:', bet.id);
+                  const updatedBetData = {
+                    ...bet,
+                    actualValue: Number(updatedBet.actual_value) || 0,
+                    actualDecimal: updatedBet.actual_decimal || 0,
+                    isWin: updatedBet.is_win,
+                    winAmount: Number(updatedBet.win_amount) || 0,
+                    status: updatedBet.status || "pending",
+                    settlementTime: updatedBet.settlement_time 
+                      ? new Date(updatedBet.settlement_time) 
+                      : bet.settlementTime,
+                  };
 
-                // Trigger animation for newly settled bets
-                if (wasSettled) {
-                  setAnimatingBets(prev => new Set([...prev, bet.id]));
-                  
-                  // Show settlement notification
-                  toast({
-                    title: updatedBet.is_win ? "🎉 Congratulations!" : "😔 Better luck next time!",
-                    description: updatedBet.is_win 
-                      ? `You won ₹${Number(updatedBet.win_amount).toFixed(2)}!`
-                      : `Your bet of ₹${bet.amount} was settled.`,
-                    variant: updatedBet.is_win ? "default" : "destructive",
-                  });
-
-                  // Remove animation after 3 seconds
-                  setTimeout(() => {
-                    setAnimatingBets(prev => {
-                      const newSet = new Set(prev);
-                      newSet.delete(bet.id);
-                      return newSet;
+                  // Trigger animation for newly settled bets
+                  if (wasSettled) {
+                    console.log('🎉 Triggering settlement animation for bet:', bet.id);
+                    setAnimatingBets(prev => new Set([...prev, bet.id]));
+                    
+                    // Show settlement notification
+                    toast({
+                      title: updatedBet.is_win ? "🎉 Congratulations!" : "😔 Better luck next time!",
+                      description: updatedBet.is_win 
+                        ? `You won ₹${Number(updatedBet.win_amount).toFixed(2)}!`
+                        : `Your bet of ₹${bet.amount} was settled.`,
+                      variant: updatedBet.is_win ? "default" : "destructive",
                     });
-                  }, 3000);
-                }
 
-                return updated;
-              }
-              return bet;
-            }));
+                    // Remove animation after 3 seconds
+                    setTimeout(() => {
+                      console.log('🔄 Removing animation for bet:', bet.id);
+                      setAnimatingBets(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete(bet.id);
+                        return newSet;
+                      });
+                    }, 3000);
+                  }
+
+                  return updatedBetData;
+                }
+                return bet;
+              });
+              console.log('📊 Updated bets array length:', updated.length);
+              return updated;
+            });
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 Subscription status:', status);
+      });
 
     // Cleanup subscription on unmount
     return () => {
+      console.log('🧹 Cleaning up subscription for user:', user.id);
       supabase.removeChannel(channel);
     };
   }, [user?.id, toast]);
