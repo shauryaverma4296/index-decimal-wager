@@ -141,14 +141,23 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
 
   // Setup websocket connection for real-time bet settlement
   useEffect(() => {
-    const wsUrl = `wss://${window.location.host}/ws/betting`;
+    const wsUrl = `wss://ecglaiolgaauemmeojzm.supabase.co/functions/v1/websocket-betting`;
     const ws = new WebSocket(wsUrl);
+    
+    ws.onopen = () => {
+      console.log('WebSocket connected');
+      ws.send(JSON.stringify({ type: 'subscribe_bets' }));
+    };
     
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === 'bet_settlement') {
         handleBetSettlement(data.betId, data.result);
       }
+    };
+    
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
     };
     
     return () => ws.close();
@@ -328,26 +337,14 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
         settlementTime: settlementDateTime
       })));
 
-      // Schedule bet settlement (in a real app, this would be handled by a backend service)
-      setTimeout(() => {
-        const currentValue = stockData[selectedIndex]?.value || Math.random() * 10000 + 10000;
-        const decimalPart = Math.floor((currentValue % 1) * 100);
-        
-        let isWin = false;
-        if (betType === "andar") {
-          isWin = Math.floor(decimalPart / 10) === Math.floor(number / 10);
-        } else if (betType === "bahar") {
-          isWin = decimalPart % 10 === number % 10;
-        } else if (betType === "pair") {
-          isWin = decimalPart === number;
+      // Trigger bet settlement via edge function
+      await supabase.functions.invoke('bet-settlement-trigger', {
+        body: {
+          betId: betData.id,
+          settlementTime: settlementDateTime.toISOString(),
+          indexName: selectedIndex
         }
-
-        handleBetSettlement(betData.id, {
-          actualValue: currentValue,
-          decimalPart,
-          isWin
-        });
-      }, Math.max(0, settlementDateTime.getTime() - Date.now()));
+      });
 
       // Update local wallet balance (deduct bet amount)
       onWalletUpdate(walletBalance - amount);
