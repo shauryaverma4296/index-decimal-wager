@@ -19,13 +19,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Get all pending bets that need to be settled
+    // Get all pending bets that need to be settled (using India timezone)
     const now = new Date()
+    const nowIndia = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }))
     const { data: pendingBets, error: fetchError } = await supabaseClient
       .from('bets')
       .select('*')
       .eq('status', 'pending')
-      .lte('settlement_time', now.toISOString())
+      .lte('settlement_time', nowIndia.toISOString())
 
     if (fetchError) {
       throw fetchError

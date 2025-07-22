@@ -544,20 +544,38 @@ export const BettingInterface = ({
         p_reference_id: `bet_${Date.now()}`,
       });
 
-      // Calculate settlement time
-      const settlementDateTime = new Date();
+      // Calculate settlement time in India timezone
+      const indiaTimezone = 'Asia/Kolkata';
+      let settlementDateTime: Date;
+
       if (settlementTime === "market_close") {
         const indexConfig = STOCK_INDICES.find(
           (idx) => idx.name === selectedIndex
         );
         if (indexConfig) {
           const hours = Math.floor(indexConfig.marketClose);
-          const minutes = (indexConfig.marketClose % 1) * 60;
-          settlementDateTime.setHours(hours, minutes, 0, 0);
+          const minutes = Math.round((indexConfig.marketClose % 1) * 60);
+          
+          // Create settlement time in India timezone for today
+          const today = new Date();
+          const indiaToday = new Date(today.toLocaleString("en-US", { timeZone: indiaTimezone }));
+          indiaToday.setHours(hours, minutes, 0, 0);
+          
+          settlementDateTime = indiaToday;
+        } else {
+          settlementDateTime = new Date();
         }
       } else if (settlementTime === "custom" && customTime) {
         const [hours, minutes] = customTime.split(":").map(Number);
-        settlementDateTime.setHours(hours, minutes, 0, 0);
+        
+        // Create custom time in India timezone for today
+        const today = new Date();
+        const indiaToday = new Date(today.toLocaleString("en-US", { timeZone: indiaTimezone }));
+        indiaToday.setHours(hours, minutes, 0, 0);
+        
+        settlementDateTime = indiaToday;
+      } else {
+        settlementDateTime = new Date();
       }
 
       // Save bet to database with settlement time and pending status
