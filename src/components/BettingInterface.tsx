@@ -488,7 +488,7 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
                   }
                   min="0"
                   max={betType === "pair" ? "99" : betType ? "9" : "99"}
-                  disabled={!betType || ((betType === "andar" || betType === "bahar") && betNumber.length >= 1)}
+                  disabled={!betType}
                   maxLength={betType === "pair" ? 2 : 1}
                 />
               </div>
