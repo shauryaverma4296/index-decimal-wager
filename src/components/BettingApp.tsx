@@ -24,13 +24,19 @@ export const BettingApp = () => {
     const getSession = async () => {
       setLoading(true);
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         setUser(session?.user || null);
         if (session?.user) {
           await fetchWalletBalance(session.user.id);
         }
-      } catch (error) {
-        console.error("Error getting session:", error);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          console.error("Error getting session:", error);
+        } else {
+          console.error("Unknown error getting session:", error);
+        }
       } finally {
         setLoading(false);
       }
@@ -38,7 +44,9 @@ export const BettingApp = () => {
 
     getSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log(_event, session);
       setUser(session?.user || null);
       if (session?.user) {
@@ -61,13 +69,17 @@ export const BettingApp = () => {
 
       if (error) throw error;
       setWalletBalance(Number(data.balance) || 0);
-    } catch (error: any) {
-      console.error("Error fetching wallet balance:", error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error("Error fetching wallet balance:", error);
+      } else {
+        console.error("Unknown error fetching wallet balance:", error);
+      }
     }
   };
 
   const handleBetPlaced = () => {
-    setBetRefreshTrigger(prev => prev + 1);
+    setBetRefreshTrigger((prev) => prev + 1);
   };
 
   const handleSignOut = async () => {
@@ -98,12 +110,7 @@ export const BettingApp = () => {
           />
         );
       case "history":
-        return (
-          <BetHistory
-            user={user!}
-            refreshTrigger={betRefreshTrigger}
-          />
-        );
+        return <BetHistory user={user!} refreshTrigger={betRefreshTrigger} />;
       default:
         return null;
     }

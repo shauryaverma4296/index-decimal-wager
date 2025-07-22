@@ -52,12 +52,21 @@ export const Auth = ({ onAuthSuccess }: AuthProps) => {
         });
       }
       onAuthSuccess();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      setLoading(false);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "An unknown error occurred.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -96,8 +105,8 @@ export const Auth = ({ onAuthSuccess }: AuthProps) => {
             />
           </div>
 
-          <Button 
-            onClick={handleAuth} 
+          <Button
+            onClick={handleAuth}
             className="w-full bg-gradient-to-r from-primary to-success hover:from-primary/90 hover:to-success/90"
             disabled={loading}
           >
@@ -121,7 +130,9 @@ export const Auth = ({ onAuthSuccess }: AuthProps) => {
             onClick={() => setIsLogin(!isLogin)}
             className="w-full"
           >
-            {isLogin ? "Don't have an account? Sign up" : "Already have an account? Login"}
+            {isLogin
+              ? "Don't have an account? Sign up"
+              : "Already have an account? Login"}
           </Button>
         </div>
       </div>

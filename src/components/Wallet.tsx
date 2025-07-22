@@ -43,8 +43,20 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
 
       if (error) throw error;
       setTransactions(data || []);
-    } catch (error: any) {
-      console.error("Error fetching transactions:", error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "An unknown error occurred.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setTransactionsLoading(false);
     }
@@ -76,27 +88,35 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
         p_amount: amount,
         p_type: "credit",
         p_description: "Money added to wallet",
-        p_reference_id: `add_${Date.now()}`
+        p_reference_id: `add_${Date.now()}`,
       });
 
       if (error) throw error;
 
       // Update local balance
       onBalanceUpdate(balance + amount);
-      
+
       toast({
         title: "Success",
         description: `₹${amount} added to your wallet!`,
       });
-      
+
       setAddAmount("");
       fetchTransactions();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "An unknown error occurred.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -123,111 +143,119 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
     <div className="max-w-2xl mx-auto">
       <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-primary/20">
         <Tabs defaultValue="balance" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="balance">Wallet</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
-        </TabsList>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="balance">Wallet</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="balance" className="space-y-6">
-          <div className="text-center space-y-2">
-            <div className="flex items-center justify-center gap-2">
-              <WalletIcon className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-semibold">My Wallet</h2>
+          <TabsContent value="balance" className="space-y-6">
+            <div className="text-center space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                <WalletIcon className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">My Wallet</h2>
+              </div>
+              <div className="text-3xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
+                ₹{balance.toFixed(2)}
+              </div>
+              <Badge variant="secondary">Current Balance</Badge>
             </div>
-            <div className="text-3xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
-              ₹{balance.toFixed(2)}
-            </div>
-            <Badge variant="secondary">Current Balance</Badge>
-          </div>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Add Money (₹10 - ₹10,000)</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  value={addAmount}
-                  onChange={(e) => setAddAmount(e.target.value)}
-                  placeholder="Enter amount"
-                  min="10"
-                  max="10000"
-                  className="flex-1"
-                />
-                <Button
-                  onClick={addMoney}
-                  disabled={loading}
-                  className="bg-gradient-to-r from-primary to-success hover:from-primary/90 hover:to-success/90"
-                >
-                  {loading ? (
-                    <LoadingSpinner size="sm" />
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add
-                    </>
-                  )}
-                </Button>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Add Money (₹10 - ₹10,000)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    value={addAmount}
+                    onChange={(e) => setAddAmount(e.target.value)}
+                    placeholder="Enter amount"
+                    min="10"
+                    max="10000"
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={addMoney}
+                    disabled={loading}
+                    className="bg-gradient-to-r from-primary to-success hover:from-primary/90 hover:to-success/90"
+                  >
+                    {loading ? (
+                      <LoadingSpinner size="sm" />
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                {[100, 500, 1000].map((amount) => (
+                  <Button
+                    key={amount}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAddAmount(amount.toString())}
+                    className="text-xs"
+                  >
+                    ₹{amount}
+                  </Button>
+                ))}
+              </div>
+
+              <div className="text-xs text-muted-foreground text-center">
+                <CreditCard className="h-3 w-3 inline mr-1" />
+                In production, this would integrate with Razorpay or similar
+                payment gateway
               </div>
             </div>
+          </TabsContent>
 
-            <div className="grid grid-cols-3 gap-2">
-              {[100, 500, 1000].map((amount) => (
-                <Button
-                  key={amount}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAddAmount(amount.toString())}
-                  className="text-xs"
-                >
-                  ₹{amount}
-                </Button>
-              ))}
+          <TabsContent value="history" className="space-y-4">
+            <div className="flex items-center gap-2">
+              <History className="h-4 w-4 text-primary" />
+              <h3 className="font-semibold">Recent Transactions</h3>
             </div>
 
-            <div className="text-xs text-muted-foreground text-center">
-              <CreditCard className="h-3 w-3 inline mr-1" />
-              In production, this would integrate with Razorpay or similar payment gateway
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="history" className="space-y-4">
-          <div className="flex items-center gap-2">
-            <History className="h-4 w-4 text-primary" />
-            <h3 className="font-semibold">Recent Transactions</h3>
-          </div>
-
-          {transactionsLoading ? (
-            <LoadingSpinner text="Loading transactions..." className="py-8" />
-          ) : transactions.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No transactions yet</p>
-              <p className="text-sm">Add money or place bets to see transaction history</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {transactions.map((transaction) => (
-                <div
-                  key={transaction.id}
-                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors"
-                >
-                  <div>
-                    <p className="text-sm font-medium">
-                      {transaction.description}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(transaction.created_at).toLocaleString()}
-                    </p>
+            {transactionsLoading ? (
+              <LoadingSpinner text="Loading transactions..." className="py-8" />
+            ) : transactions.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No transactions yet</p>
+                <p className="text-sm">
+                  Add money or place bets to see transaction history
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {transactions.map((transaction) => (
+                  <div
+                    key={transaction.id}
+                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">
+                        {transaction.description}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(transaction.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <div
+                      className={`font-mono font-bold ${getTransactionColor(
+                        transaction.type
+                      )}`}
+                    >
+                      {getTransactionSign(transaction.type)}₹
+                      {transaction.amount}
+                    </div>
                   </div>
-                  <div className={`font-mono font-bold ${getTransactionColor(transaction.type)}`}>
-                    {getTransactionSign(transaction.type)}₹{transaction.amount}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+                ))}
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </Card>
     </div>

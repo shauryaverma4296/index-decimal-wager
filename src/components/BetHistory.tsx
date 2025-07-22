@@ -28,39 +28,43 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
   const [bets, setBets] = useState<Bet[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserBets = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("bets")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      
-      const formattedBets = data.map(bet => ({
-        id: bet.id,
-        index: bet.index_name,
-        amount: Number(bet.amount),
-        betType: bet.bet_type as "andar" | "bahar" | "pair",
-        betNumber: bet.bet_number,
-        actualValue: Number(bet.actual_value) || 0,
-        actualDecimal: bet.actual_decimal || 0,
-        isWin: bet.is_win,
-        winAmount: Number(bet.win_amount) || 0,
-        timestamp: new Date(bet.created_at)
-      }));
-      
-      setBets(formattedBets);
-    } catch (error: any) {
-      console.error("Error fetching bets:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchUserBets = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("bets")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        const formattedBets = data.map((bet) => ({
+          id: bet.id,
+          index: bet.index_name,
+          amount: Number(bet.amount),
+          betType: bet.bet_type as "andar" | "bahar" | "pair",
+          betNumber: bet.bet_number,
+          actualValue: Number(bet.actual_value) || 0,
+          actualDecimal: bet.actual_decimal || 0,
+          isWin: bet.is_win,
+          winAmount: Number(bet.win_amount) || 0,
+          timestamp: new Date(bet.created_at),
+        }));
+
+        setBets(formattedBets);
+        setLoading(false);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          console.error("Error fetching bets:", error);
+        } else {
+          console.error("Unknown error fetching bets:", error);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchUserBets();
   }, [user.id, refreshTrigger]);
 
@@ -85,12 +89,23 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
           ) : (
             <div className="space-y-3">
               {bets.map((bet) => (
-                <Card key={bet.id} className="p-4 bg-muted/50 hover:bg-muted/70 transition-colors">
+                <Card
+                  key={bet.id}
+                  className="p-4 bg-muted/50 hover:bg-muted/70 transition-colors"
+                >
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <Badge variant="outline">{bet.index}</Badge>
-                        <Badge variant={bet.betType === "andar" ? "default" : bet.betType === "bahar" ? "secondary" : "destructive"}>
+                        <Badge
+                          variant={
+                            bet.betType === "andar"
+                              ? "default"
+                              : bet.betType === "bahar"
+                              ? "secondary"
+                              : "destructive"
+                          }
+                        >
                           {bet.betType.toUpperCase()}
                         </Badge>
                         <span className="text-sm text-muted-foreground">
@@ -98,18 +113,30 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        Bet: ₹{bet.amount} • Actual: {bet.actualValue.toFixed(2)} (Decimal: {bet.actualDecimal})
+                        Bet: ₹{bet.amount} • Actual:{" "}
+                        {bet.actualValue.toFixed(2)} (Decimal:{" "}
+                        {bet.actualDecimal})
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {bet.timestamp.toLocaleDateString()} {bet.timestamp.toLocaleTimeString()}
+                        {bet.timestamp.toLocaleDateString()}{" "}
+                        {bet.timestamp.toLocaleTimeString()}
                       </p>
                     </div>
                     <div className="text-right">
-                      <Badge variant={bet.isWin ? "default" : "destructive"} className="mb-1">
+                      <Badge
+                        variant={bet.isWin ? "default" : "destructive"}
+                        className="mb-1"
+                      >
                         {bet.isWin ? "WON" : "LOST"}
                       </Badge>
-                      <p className={`text-lg font-bold ${bet.isWin ? "text-success" : "text-error"}`}>
-                        {bet.isWin ? `+₹${bet.winAmount.toFixed(2)}` : `-₹${bet.amount}`}
+                      <p
+                        className={`text-lg font-bold ${
+                          bet.isWin ? "text-success" : "text-error"
+                        }`}
+                      >
+                        {bet.isWin
+                          ? `+₹${bet.winAmount.toFixed(2)}`
+                          : `-₹${bet.amount}`}
                       </p>
                     </div>
                   </div>
