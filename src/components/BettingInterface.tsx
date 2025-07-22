@@ -642,25 +642,25 @@ export const BettingInterface = ({
               <SelectTrigger>
                 <SelectValue placeholder="Choose an index" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-w-sm">
                 {STOCK_INDICES.map((index) => {
                   const isOpen = marketStatuses[index.name] ?? false;
                   const indexConfig = STOCK_INDICES.find(
                     (idx) => idx.name === index.name
                   );
                   return (
-                    <SelectItem key={index.name} value={index.name}>
-                      <div className="flex items-center justify-between w-full min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span>{index.name}</span>
+                    <SelectItem key={index.name} value={index.name} className="h-14">
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-medium">{index.name}</span>
                           <Badge
                             variant={isOpen ? "default" : "destructive"}
-                            className="text-xs"
+                            className="text-xs shrink-0"
                           >
                             {isOpen ? "OPEN" : "CLOSED"}
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-2 ml-4">
+                        <div className="flex items-center gap-1 text-right">
                           {stockData[index.name] && (
                             <>
                               <span className="font-mono text-sm">
@@ -673,21 +673,21 @@ export const BettingInterface = ({
                               )}
                             </>
                           )}
-                          {indexConfig && (
-                            <span className="text-xs text-muted-foreground ml-2">
-                              {getFormattedTime(
-                                indexConfig,
-                                indexConfig.marketOpen
-                              )}{" "}
-                              -{" "}
-                              {getFormattedTime(
-                                indexConfig,
-                                indexConfig.marketClose
-                              )}
-                            </span>
-                          )}
                         </div>
                       </div>
+                      {indexConfig && (
+                        <div className="text-xs text-muted-foreground mt-1 truncate">
+                          {getFormattedTime(
+                            indexConfig,
+                            indexConfig.marketOpen
+                          )}{" "}
+                          -{" "}
+                          {getFormattedTime(
+                            indexConfig,
+                            indexConfig.marketClose
+                          )}
+                        </div>
+                      )}
                     </SelectItem>
                   );
                 })}
