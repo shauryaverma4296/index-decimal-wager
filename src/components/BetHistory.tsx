@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, History } from "lucide-react";
+import { TrendingUp, TrendingDown, History, Clock, CheckCircle2, DollarSign } from "lucide-react";
 import { LoadingSpinner } from "./LoadingSpinner";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import { useToast } from "@/hooks/use-toast";
 
 interface Bet {
   id: string;
@@ -29,6 +30,8 @@ interface BetHistoryProps {
 export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
   const [bets, setBets] = useState<Bet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [animatingBets, setAnimatingBets] = useState<Set<string>>(new Set());
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchUserBets = async () => {
@@ -69,6 +72,102 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
     fetchUserBets();
   }, [user.id, refreshTrigger]);
 
+  // Setup realtime subscription for bet updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('bet-history-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all changes (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'bets',
+          filter: `user_id=eq.${user?.id}`,
+        },
+        (payload) => {
+          console.log('Bet update received in history:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            // Handle new bet insertion
+            const newBet = {
+              id: payload.new.id,
+              index: payload.new.index_name,
+              amount: Number(payload.new.amount),
+              betType: payload.new.bet_type as "andar" | "bahar" | "pair",
+              betNumber: payload.new.bet_number,
+              actualValue: Number(payload.new.actual_value) || 0,
+              actualDecimal: payload.new.actual_decimal || 0,
+              isWin: payload.new.is_win,
+              winAmount: Number(payload.new.win_amount) || 0,
+              timestamp: new Date(payload.new.created_at),
+              status: payload.new.status || "pending",
+              settlementTime: payload.new.settlement_time
+                ? new Date(payload.new.settlement_time)
+                : undefined,
+            };
+
+            setBets(prev => [newBet, ...prev]);
+            
+            toast({
+              title: "New Bet Placed! 🎯",
+              description: `₹${newBet.amount} bet on ${newBet.index}`,
+              variant: "default",
+            });
+
+          } else if (payload.eventType === 'UPDATE') {
+            // Handle bet settlement with animation
+            const updatedBet = payload.new;
+            const wasSettled = payload.old.status === 'pending' && updatedBet.status === 'settled';
+            
+            setBets(prev => prev.map(bet => {
+              if (bet.id === updatedBet.id) {
+                const updated = {
+                  ...bet,
+                  actualValue: Number(updatedBet.actual_value) || 0,
+                  actualDecimal: updatedBet.actual_decimal || 0,
+                  isWin: updatedBet.is_win,
+                  winAmount: Number(updatedBet.win_amount) || 0,
+                  status: updatedBet.status || "pending",
+                };
+
+                // Trigger animation for newly settled bets
+                if (wasSettled) {
+                  setAnimatingBets(prev => new Set([...prev, bet.id]));
+                  
+                  // Show settlement notification
+                  toast({
+                    title: updatedBet.is_win ? "🎉 Congratulations!" : "😔 Better luck next time!",
+                    description: updatedBet.is_win 
+                      ? `You won ₹${Number(updatedBet.win_amount).toFixed(2)}!`
+                      : `Your bet of ₹${bet.amount} was settled.`,
+                    variant: updatedBet.is_win ? "default" : "destructive",
+                  });
+
+                  // Remove animation after 3 seconds
+                  setTimeout(() => {
+                    setAnimatingBets(prev => {
+                      const newSet = new Set(prev);
+                      newSet.delete(bet.id);
+                      return newSet;
+                    });
+                  }, 3000);
+                }
+
+                return updated;
+              }
+              return bet;
+            }));
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, toast]);
+
   return (
     <div className="max-w-4xl mx-auto">
       <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-primary/20">
@@ -92,7 +191,19 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
               {bets.map((bet) => (
                 <Card
                   key={bet.id}
-                  className="p-4 bg-muted/50 hover:bg-muted/70 transition-colors"
+                  className={`p-4 transition-all duration-500 ease-in-out ${
+                    animatingBets.has(bet.id)
+                      ? bet.isWin
+                        ? "bg-success/20 border-success/50 shadow-lg shadow-success/25 animate-pulse"
+                        : "bg-destructive/20 border-destructive/50 shadow-lg shadow-destructive/25 animate-pulse"
+                      : "bg-muted/50 hover:bg-muted/70"
+                  } ${
+                    bet.status === "pending" 
+                      ? "border-l-4 border-l-yellow-500" 
+                      : bet.isWin 
+                        ? "border-l-4 border-l-green-500" 
+                        : "border-l-4 border-l-red-500"
+                  }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
@@ -112,6 +223,11 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                         <span className="text-sm text-muted-foreground">
                           #{bet.betNumber}
                         </span>
+                        {animatingBets.has(bet.id) && (
+                          <Badge variant="outline" className="animate-bounce">
+                            ✨ JUST SETTLED!
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground">
                         Bet: ₹{bet.amount}{" "}
@@ -129,9 +245,12 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                     <div className="text-right">
                       {bet.status === "pending" ? (
                         <>
-                          <Badge variant="secondary" className="mb-1">
-                            PENDING
-                          </Badge>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Clock className="h-4 w-4 text-yellow-500 animate-spin" />
+                            <Badge variant="secondary" className="animate-pulse">
+                              PENDING
+                            </Badge>
+                          </div>
                           <p className="text-sm text-muted-foreground">
                             Settlement:{" "}
                             {bet.settlementTime?.toLocaleTimeString() ||
@@ -139,21 +258,37 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                           </p>
                           {bet.settlementTime && (
                             <p className="text-xs text-muted-foreground">
-                              {bet.settlementTime < new Date() ? 'Processing settlement...' : 'Waiting for settlement time'}
+                              {bet.settlementTime < new Date() ? (
+                                <span className="flex items-center gap-1 text-yellow-600">
+                                  <DollarSign className="h-3 w-3 animate-bounce" />
+                                  Processing settlement...
+                                </span>
+                              ) : (
+                                'Waiting for settlement time'
+                              )}
                             </p>
                           )}
                         </>
                       ) : (
                         <>
-                          <Badge
-                            variant={bet.isWin ? "default" : "destructive"}
-                            className="mb-1"
-                          >
-                            {bet.isWin ? "WON" : "LOST"}
-                          </Badge>
+                          <div className="flex items-center gap-2 mb-1">
+                            {bet.isWin ? (
+                              <CheckCircle2 className="h-4 w-4 text-success" />
+                            ) : (
+                              <TrendingDown className="h-4 w-4 text-destructive" />
+                            )}
+                            <Badge
+                              variant={bet.isWin ? "default" : "destructive"}
+                              className={animatingBets.has(bet.id) ? "animate-bounce" : ""}
+                            >
+                              {bet.isWin ? "WON" : "LOST"}
+                            </Badge>
+                          </div>
                           <p
-                            className={`text-lg font-bold ${
+                            className={`text-lg font-bold transition-all duration-300 ${
                               bet.isWin ? "text-success" : "text-error"
+                            } ${
+                              animatingBets.has(bet.id) ? "scale-110" : ""
                             }`}
                           >
                             {bet.isWin
