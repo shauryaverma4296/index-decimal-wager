@@ -173,8 +173,22 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
     const indexConfig = STOCK_INDICES.find(idx => idx.name === indexName);
     if (!indexConfig) return true;
     
+    // Handle time format validation
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
+    if (!timeRegex.test(time)) return false;
+    
     const [hours, minutes] = time.split(':').map(Number);
     const customTimeDecimal = hours + minutes / 60;
+    
+    // Add debug logging
+    console.log(`Validating custom time for ${indexName}:`, {
+      time,
+      hours,
+      minutes,
+      customTimeDecimal,
+      marketClose: indexConfig.marketClose,
+      isValid: customTimeDecimal <= indexConfig.marketClose
+    });
     
     return customTimeDecimal <= indexConfig.marketClose;
   };
