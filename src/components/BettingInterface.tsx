@@ -127,15 +127,16 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
     return () => clearInterval(interval);
   }, []);
 
-  // Get formatted time in user's local timezone
+  // Get formatted time in market's timezone
   const getFormattedTime = (indexConfig: IndexConfig, time: number) => {
-    const now = new Date();
     const hours = Math.floor(time);
-    const minutes = (time % 1) * 60;
-    const targetTime = new Date();
-    targetTime.setHours(hours, minutes, 0, 0);
+    const minutes = Math.round((time % 1) * 60);
     
-    // Convert to user's local timezone
+    // Create a date object in UTC then convert to market timezone
+    const now = new Date();
+    const targetTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0, 0);
+    
+    // Format directly in the market's timezone
     return new Intl.DateTimeFormat('en-US', {
       timeZone: indexConfig.timezone,
       hour: 'numeric',
