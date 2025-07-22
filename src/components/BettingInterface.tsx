@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +43,7 @@ const STOCK_INDICES = [
 
 export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPlaced }: BettingInterfaceProps) => {
   const { toast } = useToast();
+  const wsRef = useRef<WebSocket | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<string>(STOCK_INDICES[0].name); // Default to first index
   const [betAmount, setBetAmount] = useState<string>("");
   const [betType, setBetType] = useState<string>("");
@@ -50,7 +51,7 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
   const [settlementTime, setSettlementTime] = useState<string>("market_close");
   const [customTime, setCustomTime] = useState<string>("");
   const [stockData, setStockData] = useState<Record<string, StockIndex>>({});
-  const [marketOpen, setMarketOpen] = useState(true);
+  const [marketStatuses, setMarketStatuses] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [pendingBets, setPendingBets] = useState<Map<string, any>>(new Map());
@@ -71,38 +72,65 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
     return currentTime >= indexConfig.marketOpen && currentTime <= indexConfig.marketClose;
   };
 
-  // Simulate stock data with loading
+  // Update market statuses and stock data
   useEffect(() => {
-    const generateStockData = () => {
+    const updateData = () => {
       setDataLoading(true);
       
       setTimeout(() => {
         const data: Record<string, StockIndex> = {};
+        const statuses: Record<string, boolean> = {};
+        
         STOCK_INDICES.forEach(index => {
-          data[index.name] = {
-            name: index.name,
-            value: parseFloat((Math.random() * 10000 + 10000).toFixed(2)),
-            change: (Math.random() - 0.5) * 200,
-            changePercent: (Math.random() - 0.5) * 4
-          };
+          const isOpen = isMarketOpen(index);
+          statuses[index.name] = isOpen;
+          
+          // Only update stock values if market is open
+          if (isOpen) {
+            data[index.name] = {
+              name: index.name,
+              value: parseFloat((Math.random() * 10000 + 10000).toFixed(2)),
+              change: (Math.random() - 0.5) * 200,
+              changePercent: (Math.random() - 0.5) * 4
+            };
+          } else {
+            // Keep previous values if market is closed
+            data[index.name] = stockData[index.name] || {
+              name: index.name,
+              value: parseFloat((Math.random() * 10000 + 10000).toFixed(2)),
+              change: (Math.random() - 0.5) * 200,
+              changePercent: (Math.random() - 0.5) * 4
+            };
+          }
         });
+        
         setStockData(data);
+        setMarketStatuses(statuses);
         setDataLoading(false);
       }, 1000);
     };
 
-    generateStockData();
-    const interval = setInterval(generateStockData, 3000);
+    updateData();
+    const interval = setInterval(updateData, 3000);
     return () => clearInterval(interval);
   }, []);
 
-  // Check market status based on selected index
-  useEffect(() => {
-    const indexConfig = STOCK_INDICES.find(idx => idx.name === selectedIndex);
-    if (indexConfig) {
-      setMarketOpen(isMarketOpen(indexConfig));
-    }
-  }, [selectedIndex]);
+  // Get formatted time in user's local timezone
+  const getFormattedTime = (indexConfig: IndexConfig, time: number) => {
+    const now = new Date();
+    const hours = Math.floor(time);
+    const minutes = (time % 1) * 60;
+    const targetTime = new Date();
+    targetTime.setHours(hours, minutes, 0, 0);
+    
+    // Convert to user's local timezone
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: indexConfig.timezone,
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true,
+    }).format(targetTime);
+  };
 
   // Get market close time for selected index
   const getMarketCloseTime = (indexName: string) => {
@@ -139,14 +167,18 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
     return customTimeDecimal <= indexConfig.marketClose;
   };
 
-  // Setup websocket connection for real-time bet settlement
+  // Setup websocket connection for real-time bet settlement (only once)
   useEffect(() => {
+    if (wsRef.current) return; // Prevent multiple connections
+    
     // Use local supabase for development, production URL for deployed app
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const wsUrl = isLocal 
       ? `ws://127.0.0.1:54321/functions/v1/websocket-betting`
       : `wss://ecglaiolgaauemmeojzm.supabase.co/functions/v1/websocket-betting`;
+    
     const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
     
     ws.onopen = () => {
       console.log('WebSocket connected');
@@ -164,7 +196,17 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
       console.error('WebSocket error:', error);
     };
     
-    return () => ws.close();
+    ws.onclose = () => {
+      console.log('WebSocket disconnected');
+      wsRef.current = null;
+    };
+    
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
   }, []);
 
   // Handle bet settlement from websocket
@@ -395,25 +437,44 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
                     <SelectValue placeholder="Choose an index" />
                   </SelectTrigger>
                   <SelectContent>
-                    {STOCK_INDICES.map(index => (
-                      <SelectItem key={index.name} value={index.name}>
-                        <div className="flex items-center justify-between w-full">
-                          <span>{index.name}</span>
-                          {stockData[index.name] && (
+                    {STOCK_INDICES.map(index => {
+                      const isOpen = marketStatuses[index.name] ?? false;
+                      const indexConfig = STOCK_INDICES.find(idx => idx.name === index.name);
+                      return (
+                        <SelectItem key={index.name} value={index.name}>
+                          <div className="flex items-center justify-between w-full min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span>{index.name}</span>
+                              <Badge 
+                                variant={isOpen ? "default" : "destructive"}
+                                className="text-xs"
+                              >
+                                {isOpen ? "OPEN" : "CLOSED"}
+                              </Badge>
+                            </div>
                             <div className="flex items-center gap-2 ml-4">
-                              <span className="font-mono">
-                                {stockData[index.name].value.toFixed(2)}
-                              </span>
-                              {stockData[index.name].change >= 0 ? (
-                                <TrendingUp className="h-3 w-3 text-success" />
-                              ) : (
-                                <TrendingDown className="h-3 w-3 text-error" />
+                              {stockData[index.name] && (
+                                <>
+                                  <span className="font-mono text-sm">
+                                    {stockData[index.name].value.toFixed(2)}
+                                  </span>
+                                  {stockData[index.name].change >= 0 ? (
+                                    <TrendingUp className="h-3 w-3 text-success" />
+                                  ) : (
+                                    <TrendingDown className="h-3 w-3 text-error" />
+                                  )}
+                                </>
+                              )}
+                              {indexConfig && (
+                                <span className="text-xs text-muted-foreground ml-2">
+                                  {getFormattedTime(indexConfig, indexConfig.marketOpen)} - {getFormattedTime(indexConfig, indexConfig.marketClose)}
+                                </span>
                               )}
                             </div>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -423,7 +484,15 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
                 <Card className="p-4 bg-muted/50">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Current Value</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-muted-foreground">Current Value</p>
+                        <Badge 
+                          variant={marketStatuses[selectedIndex] ? "default" : "destructive"}
+                          className="text-xs"
+                        >
+                          {marketStatuses[selectedIndex] ? "MARKET OPEN" : "MARKET CLOSED"}
+                        </Badge>
+                      </div>
                       <p className="text-2xl font-mono font-bold">
                         {stockData[selectedIndex].value.toFixed(2)}
                       </p>
@@ -566,18 +635,18 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
               <Button 
                 onClick={placeBet} 
                 className="w-full bg-gradient-to-r from-primary to-success hover:from-primary/90 hover:to-success/90"
-                disabled={!marketOpen || loading || !selectedIndex || !betType || !betNumber || !betAmount || !settlementTime || (settlementTime === "custom" && !customTime)}
+                disabled={!marketStatuses[selectedIndex] || loading || !selectedIndex || !betType || !betNumber || !betAmount || !settlementTime || (settlementTime === "custom" && !customTime)}
               >
                 {loading ? (
                   <LoadingSpinner size="sm" text="Placing bet..." />
-                ) : !marketOpen ? (
+                ) : !marketStatuses[selectedIndex] ? (
                   "Market Closed"
                 ) : (
                   "Place Bet"
                 )}
               </Button>
 
-              {!marketOpen && (
+              {!marketStatuses[selectedIndex] && (
                 <div className="text-center text-sm text-muted-foreground">
                   <Badge variant="destructive" className="mb-2">
                     Market Closed for {selectedIndex}
