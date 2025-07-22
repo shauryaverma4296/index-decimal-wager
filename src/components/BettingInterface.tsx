@@ -141,7 +141,11 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
 
   // Setup websocket connection for real-time bet settlement
   useEffect(() => {
-    const wsUrl = `wss://ecglaiolgaauemmeojzm.supabase.co/functions/v1/websocket-betting`;
+    // Use local supabase for development, production URL for deployed app
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const wsUrl = isLocal 
+      ? `ws://127.0.0.1:54321/functions/v1/websocket-betting`
+      : `wss://ecglaiolgaauemmeojzm.supabase.co/functions/v1/websocket-betting`;
     const ws = new WebSocket(wsUrl);
     
     ws.onopen = () => {
