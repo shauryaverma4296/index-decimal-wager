@@ -297,68 +297,84 @@ export const BettingInterface = ({
     return !isInPast && !isAfterMarketClose;
   };
 
-  // Setup websocket connection for real-time bet settlement (only once)
+  // Setup real-time bet settlement monitoring using Supabase realtime
   useEffect(() => {
-    if (wsRef.current) return; // Prevent multiple connections
+    const channel = supabase
+      .channel('bet-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'bets',
+          filter: `user_id=eq.${user?.id}`,
+        },
+        (payload) => {
+          console.log('Bet updated via realtime:', payload.new);
+          const bet = payload.new as any;
+          
+          // Show notification if bet is settled
+          if (bet.status === 'settled') {
+            toast({
+              title: 'Bet Settled!',
+              description: `Your bet has been ${bet.is_win ? 'won' : 'lost'}! ${bet.is_win ? `Won ₹${bet.win_amount}` : ''}`,
+              variant: bet.is_win ? 'default' : 'destructive',
+            });
+            
+            // Update wallet balance if bet won
+            if (bet.is_win && bet.win_amount > 0) {
+              onWalletUpdate(walletBalance + bet.win_amount);
+            }
+            
+            // Trigger bet history refresh
+            onBetPlaced();
+          }
+        }
+      )
+      .subscribe();
 
-    // Use local supabase for development, production URL for deployed app
-    const isLocal =
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1";
-    const wsUrl = isLocal
-      ? `ws://127.0.0.1:54321/functions/v1/websocket-betting`
-      : `wss://ecglaiolgaauemmeojzm.supabase.co/functions/v1/websocket-betting`;
-
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      console.log("WebSocket connected");
-      ws.send(JSON.stringify({ type: "subscribe_bets" }));
-    };
-
-    ws.onmessage = (event) => {
-      let data: unknown;
-      try {
-        data = JSON.parse(event.data);
-      } catch (e) {
-        console.warn("Invalid JSON from WebSocket:", event.data);
-        return;
-      }
-      // Type guard for bet_settlement event
-      if (
-        typeof data === "object" &&
-        data !== null &&
-        (data as { type?: string }).type === "bet_settlement" &&
-        typeof (data as { betId?: string }).betId === "string" &&
-        typeof (data as { result?: object }).result === "object" &&
-        (data as { result?: object }).result !== null
-      ) {
-        handleBetSettlement(
-          (data as { betId: string }).betId,
-          (data as { result: object }).result
-        );
-      } else {
-        // Optionally handle unexpected message types
-        console.warn("Unknown message received:", data);
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
-
-    ws.onclose = () => {
-      console.log("WebSocket disconnected");
-      wsRef.current = null;
-    };
-
+    // Cleanup subscription on unmount
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, toast, onWalletUpdate, onBetPlaced]);
+
+  // Setup automatic bet settlement polling every 30 seconds
+  useEffect(() => {
+    const triggerBetScheduler = async () => {
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        if (!session.session?.access_token) return;
+
+        const response = await fetch(
+          'https://ecglaiolgaauemmeojzm.supabase.co/functions/v1/bet-scheduler',
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log('Bet scheduler result:', result);
+        } else {
+          console.warn('Bet scheduler failed:', response.status);
+        }
+      } catch (error) {
+        console.error('Error triggering bet scheduler:', error);
       }
     };
+
+    // Trigger scheduler immediately on mount
+    triggerBetScheduler();
+    
+    // Set up polling every 30 seconds
+    const interval = setInterval(triggerBetScheduler, 30000);
+
+    return () => clearInterval(interval);
   }, []);
 
   // Handle bet settlement from websocket

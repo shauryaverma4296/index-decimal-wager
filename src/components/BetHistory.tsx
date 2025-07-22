@@ -135,8 +135,13 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                           <p className="text-sm text-muted-foreground">
                             Settlement:{" "}
                             {bet.settlementTime?.toLocaleTimeString() ||
-                              "Unknown"}
+                              "Processing..."}
                           </p>
+                          {bet.settlementTime && (
+                            <p className="text-xs text-muted-foreground">
+                              {bet.settlementTime < new Date() ? 'Processing settlement...' : 'Waiting for settlement time'}
+                            </p>
+                          )}
                         </>
                       ) : (
                         <>
