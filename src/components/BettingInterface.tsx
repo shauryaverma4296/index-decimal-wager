@@ -127,25 +127,38 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
     return () => clearInterval(interval);
   }, []);
 
-  // Get formatted time in market's timezone
+  // Get formatted time in IST (India timezone)
   const getFormattedTime = (indexConfig: IndexConfig, time: number) => {
     const hours = Math.floor(time);
     const minutes = Math.round((time % 1) * 60);
     
-    // Create a date object in UTC then convert to market timezone
+    // Create a date object for the market's time
     const now = new Date();
     const targetTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0, 0);
     
-    // Format directly in the market's timezone
-    return new Intl.DateTimeFormat('en-US', {
+    // First get the time in market's timezone, then convert to IST
+    const marketTime = new Intl.DateTimeFormat('en-CA', {
       timeZone: indexConfig.timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(targetTime);
+    
+    // Parse and create new date, then display in IST
+    const marketDate = new Date(marketTime.replace(',', ''));
+    
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
       hour: 'numeric',
       minute: 'numeric',
       hour12: true,
-    }).format(targetTime);
+    }).format(marketDate);
   };
 
-  // Get market close time for selected index
+  // Get market close time for selected index in IST
   const getMarketCloseTime = (indexName: string) => {
     const indexConfig = STOCK_INDICES.find(idx => idx.name === indexName);
     if (!indexConfig) return "";
@@ -156,15 +169,26 @@ export const BettingInterface = ({ user, walletBalance, onWalletUpdate, onBetPla
     const minutes = Math.round((indexConfig.marketClose % 1) * 60);
     closeTime.setHours(hours, minutes, 0, 0);
     
-    // Format in the market's timezone, then convert for display
-    const formatter = new Intl.DateTimeFormat('en-US', {
+    // First get the time in market's timezone, then convert to IST
+    const marketTime = new Intl.DateTimeFormat('en-CA', {
       timeZone: indexConfig.timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(closeTime);
+    
+    // Parse and create new date, then display in IST
+    const marketDate = new Date(marketTime.replace(',', ''));
+    
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
       hour: 'numeric',
       minute: 'numeric',
       hour12: true,
-    });
-    
-    return formatter.format(closeTime);
+    }).format(marketDate);
   };
 
   // Validate custom time is not after market close
