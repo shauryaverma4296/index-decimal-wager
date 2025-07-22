@@ -74,15 +74,19 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
 
   // Setup realtime subscription for bet updates
   useEffect(() => {
+    if (!user?.id) return;
+    
+    console.log('Setting up realtime subscription for user:', user.id);
+    
     const channel = supabase
-      .channel('bet-history-updates')
+      .channel(`bet-history-updates-${user.id}`)
       .on(
         'postgres_changes',
         {
           event: '*', // Listen to all changes (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'bets',
-          filter: `user_id=eq.${user?.id}`,
+          filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
           console.log('Bet update received in history:', payload);
