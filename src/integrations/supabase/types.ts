@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      bank_details: {
+        Row: {
+          account_holder_name: string
+          account_number: string
+          address: string
+          bank_name: string
+          created_at: string
+          id: string
+          ifsc_code: string
+          is_verified: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_holder_name: string
+          account_number: string
+          address: string
+          bank_name: string
+          created_at?: string
+          id?: string
+          ifsc_code: string
+          is_verified?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_holder_name?: string
+          account_number?: string
+          address?: string
+          bank_name?: string
+          created_at?: string
+          id?: string
+          ifsc_code?: string
+          is_verified?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bets: {
         Row: {
           actual_decimal: number | null
@@ -150,6 +189,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      withdrawals: {
+        Row: {
+          amount: number
+          bank_detail_id: string
+          created_at: string
+          failure_reason: string | null
+          id: string
+          processed_at: string | null
+          razorpay_fund_account_id: string | null
+          razorpay_payout_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          bank_detail_id: string
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          processed_at?: string | null
+          razorpay_fund_account_id?: string | null
+          razorpay_payout_id?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bank_detail_id?: string
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          processed_at?: string | null
+          razorpay_fund_account_id?: string | null
+          razorpay_payout_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_withdrawals_bank_details"
+            columns: ["bank_detail_id"]
+            isOneToOne: false
+            referencedRelation: "bank_details"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

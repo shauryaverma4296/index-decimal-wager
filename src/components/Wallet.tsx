@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Wallet as WalletIcon, Plus, History, CreditCard } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from "./LoadingSpinner";
+import { BankDetailsForm } from "./BankDetailsForm";
+import { WithdrawalForm } from "./WithdrawalForm";
 
 interface WalletProps {
   userId: string;
@@ -81,28 +83,70 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
 
     setLoading(true);
     try {
-      // In a real app, this would integrate with a payment gateway
-      // For demo purposes, we'll directly add money to wallet
-      const { error } = await supabase.rpc("update_wallet_balance", {
-        p_user_id: userId,
-        p_amount: amount,
-        p_type: "credit",
-        p_description: "Money added to wallet",
-        p_reference_id: `add_${Date.now()}`,
+      // Create Razorpay order
+      const { data: orderData, error: orderError } = await supabase.functions.invoke('create-payment-order', {
+        body: { amount }
       });
 
-      if (error) throw error;
+      if (orderError) throw orderError;
 
-      // Update local balance
-      onBalanceUpdate(balance + amount);
+      // Load Razorpay script
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => {
+        const options = {
+          key: orderData.keyId,
+          amount: orderData.amount,
+          currency: orderData.currency,
+          order_id: orderData.orderId,
+          name: 'Betting Wallet',
+          description: 'Add money to wallet',
+          handler: async (response: any) => {
+            try {
+              // Verify payment
+              const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-payment', {
+                body: {
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature
+                }
+              });
 
-      toast({
-        title: "Success",
-        description: `₹${amount} added to your wallet!`,
-      });
+              if (verifyError) throw verifyError;
 
-      setAddAmount("");
-      fetchTransactions();
+              // Update the balance in the parent component
+              onBalanceUpdate(balance + verifyData.amount);
+              setAddAmount('');
+              
+              toast({
+                title: "Payment Successful",
+                description: `Successfully added ₹${verifyData.amount.toFixed(2)} to your wallet`,
+              });
+              
+              // Refresh transactions
+              fetchTransactions();
+            } catch (error: any) {
+              console.error('Payment verification error:', error);
+              toast({
+                title: "Payment Verification Failed",
+                description: error.message || "Please contact support",
+                variant: "destructive",
+              });
+            }
+          },
+          prefill: {
+            email: 'user@example.com'
+          },
+          theme: {
+            color: '#3399cc'
+          }
+        };
+
+        const razorpay = new (window as any).Razorpay(options);
+        razorpay.open();
+      };
+      document.head.appendChild(script);
+      
     } catch (error: unknown) {
       if (error instanceof Error) {
         toast({
@@ -143,9 +187,11 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
     <div className="max-w-2xl mx-auto">
       <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-primary/20">
         <Tabs defaultValue="balance" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="balance">Wallet</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
+            <TabsTrigger value="bank-details">Bank Details</TabsTrigger>
+            <TabsTrigger value="withdraw">Withdraw</TabsTrigger>
           </TabsList>
 
           <TabsContent value="balance" className="space-y-6">
@@ -206,8 +252,7 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
 
               <div className="text-xs text-muted-foreground text-center">
                 <CreditCard className="h-3 w-3 inline mr-1" />
-                In production, this would integrate with Razorpay or similar
-                payment gateway
+                Payments powered by Razorpay
               </div>
             </div>
           </TabsContent>
@@ -255,6 +300,25 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="bank-details" className="space-y-4">
+            <BankDetailsForm 
+              userId={userId} 
+              onBankDetailsAdded={fetchTransactions}
+            />
+          </TabsContent>
+
+          <TabsContent value="withdraw" className="space-y-4">
+            <WithdrawalForm 
+              userId={userId} 
+              balance={balance}
+              onWithdrawalSuccess={() => {
+                fetchTransactions();
+                // Refresh wallet balance from parent
+                onBalanceUpdate(balance);
+              }}
+            />
           </TabsContent>
         </Tabs>
       </Card>
