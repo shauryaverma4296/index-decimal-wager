@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 serve(async (req) => {
@@ -46,19 +47,20 @@ serve(async (req) => {
     const orderData = {
       amount: Math.round(amount * 100), // Convert to paise
       currency: "INR",
-      receipt: `rcpt_${user.id}_${Date.now()}`,
+      // receipt: `rcpt_${user.id}_${Date.now()}`,
+      receipt: `rcpt_${Date.now()}`,
       notes: {
         user_id: user.id,
-        purpose: "wallet_topup"
-      }
+        purpose: "wallet_topup",
+      },
     };
 
     const authString = btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
-    
+
     const response = await fetch("https://api.razorpay.com/v1/orders", {
       method: "POST",
       headers: {
-        "Authorization": `Basic ${authString}`,
+        Authorization: `Basic ${authString}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(orderData),
@@ -77,7 +79,7 @@ serve(async (req) => {
         orderId: order.id,
         amount: order.amount,
         currency: order.currency,
-        keyId: razorpayKeyId
+        keyId: razorpayKeyId,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -86,12 +88,9 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("Error:", error.message);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      }
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    });
   }
 });
