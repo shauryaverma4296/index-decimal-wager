@@ -43,12 +43,12 @@ export const Layout = ({
     <div className="min-h-screen bg-background">
       {/* Header with persistent wallet balance */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="w-full mx-auto px-3 sm:px-4 py-2 sm:py-3">
+        <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-2 sm:py-3">
           {/* Mobile Layout */}
-          <div className="flex flex-col gap-2 md:hidden">
+          <div className="flex flex-col gap-2 lg:hidden">
             {/* Top row: Logo and Sign Out */}
             <div className="flex items-center justify-between">
-              <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
+              <h1 className="text-base sm:text-lg font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent truncate pr-2">
                 Stock Index Betting
               </h1>
               <Button variant="outline" size="sm" onClick={onSignOut}>
@@ -58,27 +58,27 @@ export const Layout = ({
             </div>
             
             {/* Bottom row: Market Status and Wallet */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Clock className="h-3 w-3" />
-                <span>Market:</span>
-                <Badge variant={marketOpen ? "default" : "destructive"} className="text-xs px-1.5 py-0.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
+                <Clock className="h-3 w-3 flex-shrink-0" />
+                <span className="whitespace-nowrap">Market:</span>
+                <Badge variant={marketOpen ? "default" : "destructive"} className="text-xs px-1.5 py-0.5 flex-shrink-0">
                   {marketOpen ? "OPEN" : "CLOSED"}
                 </Badge>
               </div>
               
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-muted/50 rounded-lg">
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-muted/50 rounded-lg flex-shrink-0">
                 <Wallet className="h-3 w-3 text-primary" />
-                <span className="text-xs font-medium">₹{walletBalance.toFixed(2)}</span>
+                <span className="text-xs font-medium whitespace-nowrap">₹{walletBalance.toFixed(2)}</span>
               </div>
             </div>
           </div>
 
           {/* Desktop Layout */}
-          <div className="hidden md:flex items-center justify-between">
+          <div className="hidden lg:flex items-center justify-between">
             {/* Logo/Title */}
             <div className="flex items-center gap-4">
-              <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
+              <h1 className="text-xl xl:text-2xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
                 Stock Index Betting
               </h1>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -95,7 +95,7 @@ export const Layout = ({
               <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
                 <Wallet className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium">Wallet Balance:</span>
-                <span className="text-lg font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
+                <span className="text-lg xl:text-xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
                   ₹{walletBalance.toFixed(2)}
                 </span>
               </div>
@@ -111,46 +111,46 @@ export const Layout = ({
 
       {/* Navigation */}
       <nav className="border-b bg-card/30">
-        <div className="w-full mx-auto px-3 sm:px-4 py-2 sm:py-3">
-          <div className="flex items-center gap-1 overflow-x-auto">
+        <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-2 sm:py-3">
+          <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-hide">
             <Button
               variant={currentSection === "betting" ? "default" : "ghost"}
               size="sm"
               onClick={() => onSectionChange("betting")}
-              className="flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap"
+              className="flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap flex-shrink-0 min-w-fit"
             >
               <Target className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline">Place Bets</span>
-              <span className="xs:hidden">Bet</span>
+              <span className="hidden sm:inline">Place Bets</span>
+              <span className="sm:hidden">Bet</span>
             </Button>
             
             <Button
               variant={currentSection === "wallet" ? "default" : "ghost"}
               size="sm"
               onClick={() => onSectionChange("wallet")}
-              className="flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap"
+              className="flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap flex-shrink-0 min-w-fit"
             >
               <Wallet className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline">Manage Wallet</span>
-              <span className="xs:hidden">Wallet</span>
+              <span className="hidden sm:inline">Manage Wallet</span>
+              <span className="sm:hidden">Wallet</span>
             </Button>
             
             <Button
               variant={currentSection === "history" ? "default" : "ghost"}
               size="sm"
               onClick={() => onSectionChange("history")}
-              className="flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap"
+              className="flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap flex-shrink-0 min-w-fit"
             >
               <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline">Bet History</span>
-              <span className="xs:hidden">History</span>
+              <span className="hidden sm:inline">Bet History</span>
+              <span className="sm:hidden">History</span>
             </Button>
           </div>
         </div>
       </nav>
 
       {/* Main Content */}
-      <main className="w-full mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      <main className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
         {children}
       </main>
     </div>

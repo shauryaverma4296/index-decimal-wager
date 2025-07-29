@@ -185,71 +185,76 @@ export function BankDetailsForm({ userId, onBankDetailsAdded }: BankDetailsFormP
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="account_holder_name">Account Holder Name</Label>
+                <Label htmlFor="account_holder_name" className="text-sm">Account Holder Name</Label>
                 <Input
                   id="account_holder_name"
                   name="account_holder_name"
                   value={formData.account_holder_name}
                   onChange={handleInputChange}
                   placeholder="Full name as per bank account"
+                  className="text-sm"
                   required
                 />
               </div>
               <div>
-                <Label htmlFor="account_number">Account Number</Label>
+                <Label htmlFor="account_number" className="text-sm">Account Number</Label>
                 <Input
                   id="account_number"
                   name="account_number"
                   value={formData.account_number}
                   onChange={handleInputChange}
                   placeholder="Bank account number"
+                  className="text-sm"
                   required
                 />
               </div>
               <div>
-                <Label htmlFor="bank_name">Bank Name</Label>
+                <Label htmlFor="bank_name" className="text-sm">Bank Name</Label>
                 <Input
                   id="bank_name"
                   name="bank_name"
                   value={formData.bank_name}
                   onChange={handleInputChange}
                   placeholder="Name of your bank"
+                  className="text-sm"
                   required
                 />
               </div>
               <div>
-                <Label htmlFor="ifsc_code">IFSC Code</Label>
+                <Label htmlFor="ifsc_code" className="text-sm">IFSC Code</Label>
                 <Input
                   id="ifsc_code"
                   name="ifsc_code"
                   value={formData.ifsc_code}
                   onChange={handleInputChange}
                   placeholder="IFSC code of your bank branch"
+                  className="text-sm uppercase"
                   style={{ textTransform: 'uppercase' }}
                   required
                 />
               </div>
             </div>
             <div>
-              <Label htmlFor="address">Address</Label>
+              <Label htmlFor="address" className="text-sm">Address</Label>
               <Textarea
                 id="address"
                 name="address"
                 value={formData.address}
                 onChange={handleInputChange}
                 placeholder="Your complete address"
+                className="text-sm min-h-[80px]"
                 required
               />
             </div>
-            <div className="flex gap-2">
-              <Button type="submit" disabled={isLoading}>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button type="submit" disabled={isLoading} className="flex-1 sm:flex-initial">
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isEditing ? 'Update Details' : 'Add Bank Details'}
               </Button>
               {isEditing && (
-                <Button type="button" variant="outline" onClick={cancelEdit}>
+                <Button type="button" variant="outline" onClick={cancelEdit} className="flex-1 sm:flex-initial">
                   Cancel
                 </Button>
               )}
@@ -266,14 +271,14 @@ export function BankDetailsForm({ userId, onBankDetailsAdded }: BankDetailsFormP
           <CardContent>
             <div className="space-y-4">
               {bankDetails.map((detail) => (
-                <div key={detail.id} className="p-4 border rounded-lg">
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-2">
-                      <p><strong>Account Holder:</strong> {detail.account_holder_name}</p>
-                      <p><strong>Bank:</strong> {detail.bank_name}</p>
-                      <p><strong>Account Number:</strong> ****{detail.account_number.slice(-4)}</p>
-                      <p><strong>IFSC:</strong> {detail.ifsc_code}</p>
-                      <p className={`text-sm ${detail.is_verified ? 'text-green-600' : 'text-yellow-600'}`}>
+                <div key={detail.id} className="p-3 sm:p-4 border rounded-lg">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                    <div className="space-y-1 sm:space-y-2 flex-1 min-w-0">
+                      <p className="text-sm"><strong>Account Holder:</strong> <span className="break-words">{detail.account_holder_name}</span></p>
+                      <p className="text-sm"><strong>Bank:</strong> <span className="break-words">{detail.bank_name}</span></p>
+                      <p className="text-sm"><strong>Account Number:</strong> ****{detail.account_number.slice(-4)}</p>
+                      <p className="text-sm"><strong>IFSC:</strong> {detail.ifsc_code}</p>
+                      <p className={`text-xs sm:text-sm ${detail.is_verified ? 'text-success' : 'text-warning'}`}>
                         Status: {detail.is_verified ? 'Verified' : 'Pending Verification'}
                       </p>
                     </div>
@@ -281,6 +286,7 @@ export function BankDetailsForm({ userId, onBankDetailsAdded }: BankDetailsFormP
                       variant="outline" 
                       size="sm" 
                       onClick={() => handleEdit(detail)}
+                      className="self-start shrink-0"
                     >
                       Edit
                     </Button>

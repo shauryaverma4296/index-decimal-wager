@@ -623,12 +623,12 @@ export const BettingInterface = ({
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-primary/20">
-        <div className="space-y-6">
+    <div className="w-full max-w-2xl mx-auto">
+      <Card className="p-4 sm:p-6 bg-gradient-to-br from-card to-card/50 border-primary/20">
+        <div className="space-y-4 sm:space-y-6">
           <div className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold">Place Your Bet</h2>
+            <Target className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            <h2 className="text-lg sm:text-xl font-semibold">Place Your Bet</h2>
           </div>
 
           {/* {dataLoading ? (
@@ -642,7 +642,7 @@ export const BettingInterface = ({
               <SelectTrigger>
                 <SelectValue placeholder="Choose an index" />
               </SelectTrigger>
-              <SelectContent className="max-w-sm">
+              <SelectContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm">
                 {STOCK_INDICES.map((index) => {
                   const isOpen = marketStatuses[index.name] ?? false;
                   const indexConfig = STOCK_INDICES.find(
@@ -652,12 +652,12 @@ export const BettingInterface = ({
                     <SelectItem
                       key={index.name}
                       value={index.name}
-                      className="h-14"
+                      className="h-auto min-h-14 p-3"
                     >
-                      <div className="flex flex-col w-full">
+                      <div className="flex flex-col w-full space-y-1">
                         <div className="flex items-center justify-between w-full">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="font-medium">{index.name}</span>
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <span className="font-medium text-sm sm:text-base truncate">{index.name}</span>
                             <Badge
                               variant={isOpen ? "default" : "destructive"}
                               className="text-xs shrink-0"
@@ -666,8 +666,8 @@ export const BettingInterface = ({
                             </Badge>
                           </div>
                           {stockData[index.name] && (
-                            <div className="flex items-center gap-1 text-right">
-                              <span className="font-mono text-sm">
+                            <div className="flex items-center gap-1 text-right shrink-0 ml-2">
+                              <span className="font-mono text-xs sm:text-sm">
                                 {stockData[index.name].value.toFixed(2)}
                               </span>
                               {stockData[index.name].change >= 0 ? (
@@ -679,18 +679,16 @@ export const BettingInterface = ({
                           )}
                         </div>
                         {indexConfig && (
-                          <div className="flex justify-between w-full">
-                            <div className="text-xs text-muted-foreground">
-                              {getFormattedTime(
-                                indexConfig,
-                                indexConfig.marketOpen
-                              )}{" "}
-                              -{" "}
-                              {getFormattedTime(
-                                indexConfig,
-                                indexConfig.marketClose
-                              )}
-                            </div>
+                          <div className="text-xs text-muted-foreground">
+                            {getFormattedTime(
+                              indexConfig,
+                              indexConfig.marketOpen
+                            )}{" "}
+                            -{" "}
+                            {getFormattedTime(
+                              indexConfig,
+                              indexConfig.marketClose
+                            )}
                           </div>
                         )}
                       </div>
@@ -703,11 +701,11 @@ export const BettingInterface = ({
 
           {/* Current Value Display */}
           {selectedIndex && stockData[selectedIndex] && (
-            <Card className="p-4 bg-muted/50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm text-muted-foreground">
+            <Card className="p-3 sm:p-4 bg-muted/50">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       Current Value
                     </p>
                     <Badge
@@ -723,11 +721,11 @@ export const BettingInterface = ({
                         : "MARKET CLOSED"}
                     </Badge>
                   </div>
-                  <p className="text-2xl font-mono font-bold">
+                  <p className="text-xl sm:text-2xl font-mono font-bold truncate">
                     {stockData[selectedIndex].value.toFixed(2)}
                   </p>
                 </div>
-                <div className="text-right">
+                <div className="text-right shrink-0">
                   <p
                     className={`text-sm ${
                       stockData[selectedIndex].change >= 0

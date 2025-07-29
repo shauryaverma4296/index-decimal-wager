@@ -172,7 +172,7 @@ export function WithdrawalForm({ userId, balance, onWithdrawalSuccess }: Withdra
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="amount">Withdrawal Amount (₹)</Label>
+              <Label htmlFor="amount" className="text-sm">Withdrawal Amount (₹)</Label>
               <Input
                 id="amount"
                 type="number"
@@ -182,19 +182,22 @@ export function WithdrawalForm({ userId, balance, onWithdrawalSuccess }: Withdra
                 min="100"
                 max={balance}
                 step="0.01"
+                className="text-sm"
                 required
               />
             </div>
             <div>
-              <Label htmlFor="bank_account">Select Bank Account</Label>
+              <Label htmlFor="bank_account" className="text-sm">Select Bank Account</Label>
               <Select value={selectedBankId} onValueChange={setSelectedBankId}>
-                <SelectTrigger>
+                <SelectTrigger className="text-sm">
                   <SelectValue placeholder="Choose bank account" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-w-[calc(100vw-2rem)]">
                   {bankDetails.map((bank) => (
-                    <SelectItem key={bank.id} value={bank.id}>
-                      {bank.bank_name} - ****{bank.account_number.slice(-4)} ({bank.account_holder_name})
+                    <SelectItem key={bank.id} value={bank.id} className="text-sm">
+                      <div className="truncate max-w-full">
+                        {bank.bank_name} - ****{bank.account_number.slice(-4)} ({bank.account_holder_name})
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -216,19 +219,19 @@ export function WithdrawalForm({ userId, balance, onWithdrawalSuccess }: Withdra
           <CardContent>
             <div className="space-y-4">
               {withdrawals.map((withdrawal) => (
-                <div key={withdrawal.id} className="p-4 border rounded-lg">
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-1">
-                      <p><strong>Amount:</strong> ₹{withdrawal.amount}</p>
-                      <p><strong>Bank:</strong> {withdrawal.bank_details?.bank_name}</p>
-                      <p><strong>Account:</strong> ****{withdrawal.bank_details?.account_number?.slice(-4)}</p>
-                      <p><strong>Date:</strong> {new Date(withdrawal.created_at).toLocaleDateString()}</p>
+                <div key={withdrawal.id} className="p-3 sm:p-4 border rounded-lg">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <p className="text-sm"><strong>Amount:</strong> ₹{withdrawal.amount}</p>
+                      <p className="text-sm"><strong>Bank:</strong> <span className="break-words">{withdrawal.bank_details?.bank_name}</span></p>
+                      <p className="text-sm"><strong>Account:</strong> ****{withdrawal.bank_details?.account_number?.slice(-4)}</p>
+                      <p className="text-sm"><strong>Date:</strong> {new Date(withdrawal.created_at).toLocaleDateString()}</p>
                       {withdrawal.failure_reason && (
-                        <p className="text-red-600"><strong>Reason:</strong> {withdrawal.failure_reason}</p>
+                        <p className="text-sm text-error"><strong>Reason:</strong> <span className="break-words">{withdrawal.failure_reason}</span></p>
                       )}
                     </div>
-                    <div className="text-right">
-                      <span className={`font-medium ${getStatusColor(withdrawal.status)}`}>
+                    <div className="text-right shrink-0">
+                      <span className={`font-medium text-sm ${getStatusColor(withdrawal.status)}`}>
                         {withdrawal.status.toUpperCase()}
                       </span>
                     </div>

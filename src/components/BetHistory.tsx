@@ -219,13 +219,13 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
   }, [user?.id, toast]);
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-primary/20">
-        <div className="space-y-6">
-          <div className="flex items-center gap-2">
-            <History className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold">Bet History</h2>
-            <Badge variant="secondary">{bets.length} bets</Badge>
+    <div className="w-full max-w-4xl mx-auto">
+      <Card className="p-4 sm:p-6 bg-gradient-to-br from-card to-card/50 border-primary/20">
+        <div className="space-y-4 sm:space-y-6">
+          <div className="flex items-center gap-2 flex-wrap">
+            <History className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            <h2 className="text-lg sm:text-xl font-semibold">Bet History</h2>
+            <Badge variant="secondary" className="text-xs">{bets.length} bets</Badge>
           </div>
 
           {loading ? (
@@ -233,15 +233,15 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
           ) : bets.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No bets placed yet</p>
-              <p className="text-sm">Start betting to see your history here!</p>
+              <p className="text-sm sm:text-base">No bets placed yet</p>
+              <p className="text-xs sm:text-sm">Start betting to see your history here!</p>
             </div>
           ) : (
             <div className="space-y-3">
               {bets.map((bet) => (
                 <Card
                   key={bet.id}
-                  className={`p-4 transition-all duration-500 ease-in-out ${
+                  className={`p-3 sm:p-4 transition-all duration-500 ease-in-out ${
                     animatingBets.has(bet.id)
                       ? bet.isWin
                         ? "bg-success/20 border-success/50 shadow-lg shadow-success/25 animate-pulse"
@@ -255,10 +255,10 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                       : "border-l-4 border-l-red-500"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">{bet.index}</Badge>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="text-xs shrink-0">{bet.index}</Badge>
                         <Badge
                           variant={
                             bet.betType === "andar"
@@ -267,19 +267,20 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                               ? "secondary"
                               : "destructive"
                           }
+                          className="text-xs shrink-0"
                         >
                           {bet.betType.toUpperCase()}
                         </Badge>
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-xs sm:text-sm text-muted-foreground shrink-0">
                           #{bet.betNumber}
                         </span>
                         {animatingBets.has(bet.id) && (
-                          <Badge variant="outline" className="animate-bounce">
+                          <Badge variant="outline" className="animate-bounce text-xs shrink-0">
                             ✨ JUST SETTLED!
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-xs sm:text-sm text-muted-foreground break-words">
                         Bet: ₹{bet.amount}{" "}
                         {bet.status === "pending"
                           ? "• Pending Settlement"
@@ -292,19 +293,19 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                         {bet.timestamp.toLocaleTimeString()}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-left sm:text-right shrink-0">
                       {bet.status === "pending" ? (
                         <>
                           <div className="flex items-center gap-2 mb-1">
-                            <Clock className="h-4 w-4 text-yellow-500 animate-spin" />
+                            <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500 animate-spin" />
                             <Badge
                               variant="secondary"
-                              className="animate-pulse"
+                              className="animate-pulse text-xs"
                             >
                               PENDING
                             </Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             Settlement:{" "}
                             {bet.settlementTime?.toLocaleTimeString() ||
                               "Processing..."}
@@ -326,23 +327,23 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                         <>
                           <div className="flex items-center gap-2 mb-1">
                             {bet.isWin ? (
-                              <CheckCircle2 className="h-4 w-4 text-success" />
+                              <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-success" />
                             ) : (
-                              <TrendingDown className="h-4 w-4 text-destructive" />
+                              <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4 text-destructive" />
                             )}
                             <Badge
                               variant={bet.isWin ? "default" : "destructive"}
-                              className={
+                              className={`text-xs ${
                                 animatingBets.has(bet.id)
                                   ? "animate-bounce"
                                   : ""
-                              }
+                              }`}
                             >
                               {bet.isWin ? "WON" : "LOST"}
                             </Badge>
                           </div>
                           <p
-                            className={`text-lg font-bold transition-all duration-300 ${
+                            className={`text-base sm:text-lg font-bold transition-all duration-300 ${
                               bet.isWin ? "text-success" : "text-error"
                             } ${animatingBets.has(bet.id) ? "scale-110" : ""}`}
                           >

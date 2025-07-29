@@ -184,32 +184,32 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-primary/20">
+    <div className="w-full max-w-2xl mx-auto">
+      <Card className="p-4 sm:p-6 bg-gradient-to-br from-card to-card/50 border-primary/20">
         <Tabs defaultValue="balance" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="balance">Wallet</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-            <TabsTrigger value="bank-details">Bank Details</TabsTrigger>
-            <TabsTrigger value="withdraw">Withdraw</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+            <TabsTrigger value="balance" className="text-xs sm:text-sm py-2">Wallet</TabsTrigger>
+            <TabsTrigger value="history" className="text-xs sm:text-sm py-2">History</TabsTrigger>
+            <TabsTrigger value="bank-details" className="text-xs sm:text-sm py-2">Bank Details</TabsTrigger>
+            <TabsTrigger value="withdraw" className="text-xs sm:text-sm py-2">Withdraw</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="balance" className="space-y-6">
+          <TabsContent value="balance" className="space-y-4 sm:space-y-6 mt-4">
             <div className="text-center space-y-2">
               <div className="flex items-center justify-center gap-2">
-                <WalletIcon className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-semibold">My Wallet</h2>
+                <WalletIcon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                <h2 className="text-lg sm:text-xl font-semibold">My Wallet</h2>
               </div>
-              <div className="text-3xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
+              <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
                 ₹{balance.toFixed(2)}
               </div>
-              <Badge variant="secondary">Current Balance</Badge>
+              <Badge variant="secondary" className="text-xs">Current Balance</Badge>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Add Money (₹10 - ₹10,000)</Label>
-                <div className="flex gap-2">
+                <Label className="text-sm">Add Money (₹10 - ₹10,000)</Label>
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Input
                     type="number"
                     value={addAmount}
@@ -222,14 +222,14 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
                   <Button
                     onClick={addMoney}
                     disabled={loading}
-                    className="bg-gradient-to-r from-primary to-success hover:from-primary/90 hover:to-success/90"
+                    className="bg-gradient-to-r from-primary to-success hover:from-primary/90 hover:to-success/90 sm:px-6"
                   >
                     {loading ? (
                       <LoadingSpinner size="sm" />
                     ) : (
                       <>
                         <Plus className="h-4 w-4 mr-2" />
-                        Add
+                        Add Money
                       </>
                     )}
                   </Button>
@@ -243,7 +243,7 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
                     variant="outline"
                     size="sm"
                     onClick={() => setAddAmount(amount.toString())}
-                    className="text-xs"
+                    className="text-xs py-2"
                   >
                     ₹{amount}
                   </Button>
@@ -257,10 +257,10 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
             </div>
           </TabsContent>
 
-          <TabsContent value="history" className="space-y-4">
+          <TabsContent value="history" className="space-y-4 mt-4">
             <div className="flex items-center gap-2">
               <History className="h-4 w-4 text-primary" />
-              <h3 className="font-semibold">Recent Transactions</h3>
+              <h3 className="text-base sm:text-lg font-semibold">Recent Transactions</h3>
             </div>
 
             {transactionsLoading ? (
@@ -268,8 +268,8 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
             ) : transactions.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
                 <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No transactions yet</p>
-                <p className="text-sm">
+                <p className="text-sm sm:text-base">No transactions yet</p>
+                <p className="text-xs sm:text-sm">
                   Add money or place bets to see transaction history
                 </p>
               </div>
@@ -278,10 +278,10 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
                 {transactions.map((transaction) => (
                   <div
                     key={transaction.id}
-                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors"
+                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors gap-2"
                   >
-                    <div>
-                      <p className="text-sm font-medium">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">
                         {transaction.description}
                       </p>
                       <p className="text-xs text-muted-foreground">
@@ -289,7 +289,7 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
                       </p>
                     </div>
                     <div
-                      className={`font-mono font-bold ${getTransactionColor(
+                      className={`font-mono font-bold text-sm shrink-0 ${getTransactionColor(
                         transaction.type
                       )}`}
                     >
@@ -302,14 +302,14 @@ export const Wallet = ({ userId, balance, onBalanceUpdate }: WalletProps) => {
             )}
           </TabsContent>
 
-          <TabsContent value="bank-details" className="space-y-4">
+          <TabsContent value="bank-details" className="space-y-4 mt-4">
             <BankDetailsForm 
               userId={userId} 
               onBankDetailsAdded={fetchTransactions}
             />
           </TabsContent>
 
-          <TabsContent value="withdraw" className="space-y-4">
+          <TabsContent value="withdraw" className="space-y-4 mt-4">
             <WithdrawalForm 
               userId={userId} 
               balance={balance}
