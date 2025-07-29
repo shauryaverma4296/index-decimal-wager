@@ -225,7 +225,9 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
           <div className="flex items-center gap-2 flex-wrap">
             <History className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             <h2 className="text-lg sm:text-xl font-semibold">Bet History</h2>
-            <Badge variant="secondary" className="text-xs">{bets.length} bets</Badge>
+            <Badge variant="secondary" className="text-xs">
+              {bets.length} bets
+            </Badge>
           </div>
 
           {loading ? (
@@ -234,7 +236,9 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
             <div className="text-center text-muted-foreground py-8">
               <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-sm sm:text-base">No bets placed yet</p>
-              <p className="text-xs sm:text-sm">Start betting to see your history here!</p>
+              <p className="text-xs sm:text-sm">
+                Start betting to see your history here!
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -258,7 +262,9 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="space-y-1 flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="outline" className="text-xs shrink-0">{bet.index}</Badge>
+                        <Badge variant="outline" className="text-xs shrink-0">
+                          {bet.index}
+                        </Badge>
                         <Badge
                           variant={bet.betType as "andar" | "bahar" | "pair"}
                           className="text-xs shrink-0"
@@ -266,10 +272,13 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                           {bet.betType.toUpperCase()}
                         </Badge>
                         <span className="text-xs sm:text-sm text-muted-foreground shrink-0">
-                          #{bet.betNumber}
+                          Your Number: {bet.betNumber}
                         </span>
                         {animatingBets.has(bet.id) && (
-                          <Badge variant="outline" className="animate-bounce text-xs shrink-0">
+                          <Badge
+                            variant="outline"
+                            className="animate-bounce text-xs shrink-0"
+                          >
                             ✨ JUST SETTLED!
                           </Badge>
                         )}
@@ -278,7 +287,7 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                         Bet: ₹{bet.amount}{" "}
                         {bet.status === "pending"
                           ? "• Pending Settlement"
-                          : `• Actual: ${bet.actualValue.toFixed(
+                          : `• Lucky Number: ${bet.actualValue.toFixed(
                               2
                             )} (Decimal: ${bet.actualDecimal})`}
                       </p>
