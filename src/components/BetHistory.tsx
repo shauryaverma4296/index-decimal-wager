@@ -260,13 +260,7 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline" className="text-xs shrink-0">{bet.index}</Badge>
                         <Badge
-                          variant={
-                            bet.betType === "andar"
-                              ? "default"
-                              : bet.betType === "bahar"
-                              ? "secondary"
-                              : "destructive"
-                          }
+                          variant={bet.betType as "andar" | "bahar" | "pair"}
                           className="text-xs shrink-0"
                         >
                           {bet.betType.toUpperCase()}
