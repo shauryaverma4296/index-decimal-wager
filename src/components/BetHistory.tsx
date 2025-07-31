@@ -287,9 +287,9 @@ export const BetHistory = ({ user, refreshTrigger }: BetHistoryProps) => {
                         Bet: ₹{bet.amount}{" "}
                         {bet.status === "pending"
                           ? "• Pending Settlement"
-                          : `• Lucky Number: ${bet.actualValue.toFixed(
+                          : `• Market close at: ${bet.actualValue.toFixed(
                               2
-                            )} (Decimal: ${bet.actualDecimal})`}
+                            )} (Lucky Number: ${bet.actualDecimal})`}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {bet.timestamp.toLocaleDateString()}{" "}
